@@ -1,0 +1,4 @@
+import { NextResponse } from 'next/server'
+import { requireClerkUserId } from '@/lib/auth/require-user'
+import { habitsRepository } from '@/lib/appwrite/repositories/habits.repository'
+export async function PATCH(request: Request, context: RouteContext<'/api/habits/[id]'>) { try { const { id } = await context.params; const body = await request.json() as { streak?: unknown; completedDates?: unknown }; const data = { ...(typeof body.streak === 'number' && body.streak >= 0 ? { streak: body.streak } : {}), ...(Array.isArray(body.completedDates) ? { completedDates: body.completedDates.filter((date): date is string => typeof date === 'string') } : {}) }; return NextResponse.json(await habitsRepository.update(await requireClerkUserId(), id, data)) } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Unexpected server error.' }, { status: 400 }) } }

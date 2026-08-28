@@ -1,0 +1,5 @@
+import 'server-only'
+import { appwriteConfig } from './config'
+type ApiError = { message?: string }
+export class AppwriteError extends Error { constructor(message: string, public readonly status: number) { super(message) } }
+export async function appwriteRequest<T>(path: string, options: RequestInit = {}): Promise<T> { const config = appwriteConfig(); let response: Response; try { response = await fetch(`${config.endpoint}${path}`, { ...options, headers: { 'Content-Type': 'application/json', 'X-Appwrite-Project': config.projectId, 'X-Appwrite-Key': config.apiKey, 'X-Appwrite-Response-Format': '1.9.6', ...options.headers }, cache: 'no-store' }) } catch { throw new AppwriteError('Unable to reach Appwrite. Check your connection and endpoint.', 503) }; if (!response.ok) { const body = await response.json().catch(() => ({})) as ApiError; throw new AppwriteError(body.message || 'Appwrite request failed.', response.status) }; if (response.status === 204) return undefined as T; return response.json() as Promise<T> }
