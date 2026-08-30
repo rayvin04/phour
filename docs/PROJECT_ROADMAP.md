@@ -18,7 +18,7 @@ Notes: Server-side repository implementations exist for tasks/habits/focus sessi
 Planned / In progress:
 - Appwrite integration and configuration (env vars, create collections) — repository code present; developer must configure Appwrite per `APPWRITE_SCHEMA.md` (required)
 - Database schema validation & migrations — planned
-- Improve API error shapes and client error handling — planned
+- Improve API error shapes and client error handling — partially completed (central client request helper, toast errors, optimistic rollback; API handlers still have inconsistent server error helpers)
 - Add local dev fallback or Appwrite mock mode — recommended
 
 ## Phase 3 — Productivity features
@@ -31,11 +31,11 @@ Planned (not yet implemented):
 
 ## Phase 4 — UX polish
 Planned:
-- Toast notifications and centralized error UI
-- Better loading states and skeletons for data fetches
-- Accessibility audits and improvements
-- Responsive polish across breakpoints
-- Design system extraction and Storybook
+- Toast notifications and centralized error UI — completed for current task, habit, and focus-session actions
+- Better loading states and skeletons for data fetches — completed for task and habit initial loads
+- Accessibility audits and improvements — partially completed (focus visibility and action labels improved; full audit remains)
+- Responsive polish across breakpoints — partially completed (task layout and action controls refined)
+- Design system extraction and Storybook — planned
 
 ## Phase 5 — Quality, Ops, Release
 Planned:

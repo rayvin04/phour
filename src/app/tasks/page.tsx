@@ -1,12 +1,114 @@
 'use client'
-import { useState } from 'react'
+
+import { useState, type FormEvent } from 'react'
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { useWorkspace } from '@/lib/workspace-provider'
+import { Skeleton } from '@/components/ui/skeleton'
+import { TaskRow } from '@/features/tasks/task-row'
+import { useTaskWorkspace } from '@/features/tasks/tasks-provider'
+
+function TasksSkeleton() {
+  return (
+    <div className="task-rows-skeleton" aria-label="Loading tasks" aria-busy="true">
+      <Skeleton className="task-skeleton" />
+      <Skeleton className="task-skeleton" />
+      <Skeleton className="task-skeleton" />
+    </div>
+  )
+}
 
 export default function TasksPage() {
-  const { activeTasks, archivedTasks, addTask, toggleTask, updateTask, deleteTask, archiveTask, restoreTask } = useWorkspace()
+  const {
+    activeTasks,
+    archivedTasks,
+    isLoading,
+    addTask,
+    toggleTask,
+    updateTask,
+    deleteTask,
+    archiveTask,
+    restoreTask,
+  } = useTaskWorkspace()
+
   const [draft, setDraft] = useState('')
-  return <AppShell><div className="page-intro"><p className="eyebrow">Workspace · Tasks</p><h1>Tasks</h1><p className="lede">Capture what matters, then give it your full attention.</p></div><Card className="tasks"><form className="task-form" onSubmit={async (e) => { e.preventDefault(); if (await addTask(draft)) setDraft('') }}><input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Add a task…" aria-label="New task"/><Button type="submit">Create task</Button></form>{activeTasks.length ? activeTasks.map((task) => <div className="task-row" key={task.id}><div className="task"><input type="checkbox" checked={task.done} onChange={() => toggleTask(task.id)} aria-label={`Complete ${task.title}`}/><input className="task-edit" value={task.title} onChange={(e) => updateTask(task.id, { title: e.target.value })} aria-label="Task title"/><select value={task.priority} onChange={(e) => updateTask(task.id, { priority: e.target.value as 'low'|'medium'|'high' })} aria-label="Priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select><button className="text-button" onClick={() => archiveTask(task.id)}>Archive</button><button className="text-button danger" onClick={() => deleteTask(task.id)}>Delete</button></div><details className="task-details"><summary>Details</summary><div className="details-grid"><label>Due date<input type="date" value={task.dueDate || ''} onChange={(e) => updateTask(task.id, { dueDate: e.target.value })}/></label><label>Category<input value={task.category || ''} onChange={(e) => updateTask(task.id, { category: e.target.value })}/></label><label>Tags<input value={task.tags.join(', ')} onChange={(e) => updateTask(task.id, { tags: e.target.value.split(',').map((tag) => tag.trim()).filter(Boolean) })}/></label><label>Notes<textarea value={task.notes || ''} onChange={(e) => updateTask(task.id, { notes: e.target.value })}/></label></div><div className="subtasks"><strong>Subtasks</strong>{task.subtasks.map((subtask) => <label className="task" key={subtask.id}><input type="checkbox" checked={subtask.done} onChange={() => updateTask(task.id, { subtasks: task.subtasks.map((item) => item.id === subtask.id ? { ...item, done: !item.done } : item) })}/><span>{subtask.title}</span></label>)}<button className="text-button" onClick={() => { const title = window.prompt('Subtask name'); if (title?.trim()) updateTask(task.id, { subtasks: [...task.subtasks, { id: String(Date.now()), title: title.trim(), done: false }] }) }}>+ Add subtask</button></div></details></div>) : <div className="empty-state"><h2>No tasks yet.</h2><p>Create your first task.</p></div>}{archivedTasks.length > 0 && <><div className="section-head archive-head"><h2>Archived</h2></div>{archivedTasks.map((task) => <div className="task task-row" key={task.id}><span>{task.title}</span><button className="text-button" onClick={() => restoreTask(task.id)}>Restore</button></div>)}</>}</Card></AppShell>
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (isSubmitting || !draft.trim()) return
+    setIsSubmitting(true)
+    if (await addTask(draft)) setDraft('')
+    setIsSubmitting(false)
+  }
+
+  return (
+    <AppShell>
+      <div className="page-intro">
+        <p className="eyebrow">Workspace · Tasks</p>
+        <h1>Tasks</h1>
+        <p className="lede">Capture what matters, then give it your full attention.</p>
+      </div>
+
+      <Card className="tasks">
+        <form className="task-form" onSubmit={submit}>
+          <input
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="Add a task…"
+            aria-label="New task"
+            disabled={isSubmitting}
+          />
+          <Button type="submit" disabled={isSubmitting || !draft.trim()}>
+            {isSubmitting ? 'Creating…' : 'Create task'}
+          </Button>
+        </form>
+
+        {isLoading ? (
+          <TasksSkeleton />
+        ) : activeTasks.length > 0 ? (
+          <div className="task-rows">
+            {activeTasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                onToggle={toggleTask}
+                onUpdate={updateTask}
+                onArchive={archiveTask}
+                onDelete={deleteTask}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <h2>No active tasks</h2>
+            <p>Add your first task using the form above.</p>
+          </div>
+        )}
+
+        {!isLoading && archivedTasks.length > 0 && (
+          <>
+            <div className="section-head archive-head">
+              <h2>Archived</h2>
+              <span>{archivedTasks.length} task{archivedTasks.length === 1 ? '' : 's'}</span>
+            </div>
+            <div className="archived-list">
+              {archivedTasks.map((task) => (
+                <div className="archived-task" key={task.id}>
+                  <span>{task.title}</span>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => void restoreTask(task.id)}
+                  >
+                    Restore
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </Card>
+    </AppShell>
+  )
 }

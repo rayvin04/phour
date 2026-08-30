@@ -1,8 +1,55 @@
 {
+
   "name": "phour",
+
   "version": "0.1.0",
+
   "private": true,
-  "scripts": {"dev":"next dev","build":"next build","start":"next start","lint":"next lint"},
-  "dependencies": {"@clerk/nextjs":"latest","next":"latest","react":"latest","react-dom":"latest"},
-  "devDependencies": {"@types/node":"latest","@types/react":"latest","@types/react-dom":"latest","typescript":"latest","eslint":"latest","eslint-config-next":"latest"}
+
+  "scripts": {
+
+    "dev": "next dev",
+
+    "build": "next build",
+
+    "start": "next start",
+
+    "lint": "next lint",
+
+    "provision:appwrite": "node scripts/provision-appwrite.mjs"
+
+  },
+
+  "dependencies": {
+
+    "@clerk/nextjs": "latest",
+
+    "next": "latest",
+
+    "react": "latest",
+
+    "react-dom": "latest"
+
+  },
+
+  "devDependencies": {
+
+    "@types/node": "latest",
+
+    "@types/react": "latest",
+
+    "@types/react-dom": "latest",
+
+    "typescript": "latest",
+
+    "eslint": "latest",
+
+    "eslint-config-next": "latest",
+
+    "dotenv": "latest",
+    "next-themes": "latest"
+
+  }
+
 }
+
