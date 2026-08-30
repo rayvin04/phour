@@ -43,7 +43,7 @@ A premium, minimal productivity workspace that makes it easy to plan work, keep 
 - `src/features/` — feature modules
   - `features/tasks/` — `use-tasks`, UI components, types, validation, and a client-side service wrapper
 - `src/lib/` — infrastructure and providers
-  - `workspace-provider.tsx` — the client-side workspace context that composes task state, habits, and a local focus timer
+  - `workspace-provider.tsx` — composes isolated task, habit, and focus-timer providers
   - `appwrite/` — `client.ts`, `config.ts`, `types.ts`, and `repositories/*` implementing Appwrite access
   - `auth/require-user.ts` — server helper enforcing Clerk auth in API handlers
 - `src/proxy.ts` — Clerk middleware matcher for the App Router
@@ -56,10 +56,11 @@ A premium, minimal productivity workspace that makes it easy to plan work, keep 
 - `src/proxy.ts` exports `clerkMiddleware()` with a matcher for app routes and `/api/*`.
 
 ## State management
-- Primary mechanism: React local state and React Context.
-- `useTasks()` manages task state with `useState`, fetches from `/api/tasks`, and exposes add/update/toggle/delete/archive/restore operations.
-- `WorkspaceProvider` composes `useTasks()` and adds habits + a local focus timer. It exposes a context via `useWorkspace()`.
-- Clerk client state (`useUser()`) is used for personalization; server-side `auth()` is used within API routes.
+- Primary mechanism: feature-scoped React Context providers with React local state.
+- `TasksProvider`, `HabitsProvider`, and `FocusTimerProvider` are composed by `WorkspaceProvider` but publish independent contexts. Timer ticks therefore do not re-render task- or habit-only views.
+- `useTasks()` manages task state and optimistic API synchronization; task and habit data loads only when a consuming workspace view mounts.
+- `ToastProvider` supplies accessible, non-blocking success and error feedback.
+- Clerk client state (`useUser()`) is used for personalization and to avoid loading private API data until a user exists; server-side `auth()` is used within API routes.
 
 ## Database strategy
 - Appwrite is the intended persistent store. The server-side layer (`src/lib/appwrite/*`) implements request helpers and collection repositories that enforce ownership.
@@ -69,10 +70,11 @@ A premium, minimal productivity workspace that makes it easy to plan work, keep 
 ## Implemented features
 - Authentication shell with Clerk (sign-in UI and UserButton).
 - Dashboard (`/`) with greeting and metric cards.
-- Tasks UI: listing, toggling, creating, editing, archiving, deleting (client wired to server API). `useTasks()` and `/api/tasks` endpoints exist.
-- Habits UI: listing, creating, toggling. `WorkspaceProvider` fetches `/api/habits` and server API routes exist.
-- Focus timer: client-side 25-minute Pomodoro-style timer. Reset posts a focus session to `/api/focus-sessions`.
+- Tasks UI: listing, toggling, creating, editing, archiving, deleting with optimistic UI, rollback on persistence failure, responsive task rows, and save-on-blur text fields. `useTasks()` and `/api/tasks` endpoints exist.
+- Habits UI: listing, creating, toggling with optimistic UI and rollback. Server API routes exist.
+- Focus timer: client-side 25-minute Pomodoro-style timer that stops and persists a completed focus session at 25 minutes; resetting a partial timer persists it.
 - Simple insights page that aggregates workspace state into metrics.
+- Loading skeletons, accessible toast feedback, and keyboard-visible focus treatments for current workspace features.
 - Appwrite repository pattern (`UserRepository`) used by server APIs for ownership checks.
 
 ## Planned features (explicit in code/docs but not yet complete)
@@ -83,15 +85,17 @@ A premium, minimal productivity workspace that makes it easy to plan work, keep 
 - Floating dependency versions (`latest`) in `package.json` which risks inconsistent installs.
 - No tests, CI, or deployment manifests.
 - No central design system package (small UI primitives exist but no Storybook or component docs).
-- Error handling & UX: no centralized toasts or consistent loading states.
 - Subtask persistence is inconsistent: UI keeps subtasks in-memory while a `subtasks` repository exists in server code.
+- Optimistic mutations use local snapshots for rollback, but concurrent edits to the same task are not conflict-resolved.
+- Focus sessions are written on completion/reset but historical sessions are not loaded into workspace state.
 
 ## Architectural decisions already made
 - Next.js App Router is the app structure.
 - Clerk is the single authentication provider.
 - Appwrite is the chosen backend persistence with a server-only API key pattern.
 - Repository pattern for Appwrite (`UserRepository`) enforces ownership before write/delete.
-- Local workspace state is provided via `WorkspaceProvider` (React Context) and composed from feature hooks.
+- `WorkspaceProvider` composes independent feature contexts instead of exposing one mutable workspace context; this isolates re-renders and enables lazy feature loading.
+- Client mutations use optimistic updates and roll back local state when API persistence fails.
 
 ## Coding conventions
 - TypeScript with React function components and hooks.
@@ -106,9 +110,9 @@ A premium, minimal productivity workspace that makes it easy to plan work, keep 
 - `src/lib` contains infrastructure (appwrite client, providers, auth helpers).
 
 ## Component conventions
-- UI primitives are intentionally minimal and styled via `globals.css`.
+- UI primitives are intentionally minimal and styled via `globals.css`; `ToastProvider` and `Skeleton` are reusable feedback/loading primitives.
 - Use `AppShell` for workspace pages to maintain consistent navigation and layout.
-- Keep logic in hooks (`useTasks`, provider) and use components for presentation.
+- Keep logic in hooks/providers and use focused presentation components (for example, `TaskRow`) for editing UI.
 
 ---
 
