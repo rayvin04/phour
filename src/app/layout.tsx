@@ -8,8 +8,9 @@ import './globals.css'
 import { ThemeProviderClient } from '@/components/theme-provider-client'
 
 export const metadata = {
-  title: 'Phour — intentional productivity',
-  description: 'A calm workspace for focused, intentional work.',
+  title: 'Phour',
+  applicationName: 'Phour',
+  description: 'Phour is a calm productivity workspace for tasks, focus sessions, habits, files, and intentional daily progress.',
   icons: {
     icon: '/branding/phour-fav-icon.png',
     shortcut: '/branding/phour-fav-icon.png',

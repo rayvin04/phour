@@ -63,7 +63,7 @@ function DashboardHome() {
     if (hour < 21) return 'Good evening'
     return 'Good night'
   }, [hour])
-  const quote = useMemo(() => quoteForDate(now), [day, month, now, year])
+  const quote = useMemo(() => quoteForDate(now), [now])
   const completedHabits = habits.filter((h) => h.completed).length
 
   return (
@@ -71,13 +71,13 @@ function DashboardHome() {
       <div className="page-intro">
         <h1>{greeting}, {name}</h1>
         <p className="dashboard-datetime">{dateTimeLabel}</p>
-        <p className="dashboard-quote">"{quote}"</p>
+        <p className="dashboard-quote">&ldquo;{quote}&rdquo;</p>
       </div>
 
       <div className="metrics">
         <Link href="/tasks">
           <Card>
-            <small>Today's tasks</small>
+            <small>Today&apos;s tasks</small>
             <strong>{completedCount} <em>/ {tasksLoading ? '–' : tasks.length}</em></strong>
             <span>{tasksLoading ? 'Loading…' : `${completion}% complete · View all`}</span>
           </Card>
@@ -93,7 +93,7 @@ function DashboardHome() {
           <Card>
             <small>Habits today</small>
             <strong>{completedHabits} <em>/ {habits.length}</em></strong>
-            <span>View today's habits</span>
+            <span>View today&apos;s habits</span>
           </Card>
         </Link>
       </div>
@@ -160,9 +160,9 @@ function LandingPage() {
                 </div>
               </div>
               <div className="mock-panel">
-                <div className="mock-panel__row"><span /> <span /> <span /></div>
-                <div className="mock-panel__row"><span /> <span className="short" /> <span className="done" /></div>
-                <div className="mock-panel__row"><span /> <span className="short" /> <span className="done" /></div>
+                <div className="mock-panel__row"><span className="task-status task-status--done" /> <span className="task-copy">Fix authentication bug in project</span> <span className="task-pill" /></div>
+                <div className="mock-panel__row"><span className="task-status" /> <span className="task-copy">Submit database project before 11:59 PM</span> <span className="task-pill task-pill--warn" /></div>
+                <div className="mock-panel__row"><span className="task-status task-status--done" /> <span className="task-copy">Review Java programming notes</span> <span className="task-pill" /></div>
               </div>
             </div>
           </div>

@@ -73,7 +73,7 @@ function loadStoredState(): StoredTimerState {
 
 export function FocusTimerProvider({ children }: { children: React.ReactNode }) {
   const { notify } = useToast()
-  const initial = useMemo(loadStoredState, [])
+  const initial = useMemo(() => loadStoredState(), [])
 
   const [durationMinutes, setDurationMinutes] = useState(initial.durationMinutes)
   const [timerRunning, setTimerRunning] = useState(initial.timerRunning)
