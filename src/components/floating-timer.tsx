@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { useUser } from '@clerk/nextjs'
 import { usePathname, useRouter } from 'next/navigation'
 import { useFocusTimer } from '@/features/focus/focus-timer-provider'
 
@@ -17,6 +18,7 @@ function formatDuration(seconds: number) {
 export function FloatingTimer() {
   const pathname = usePathname()
   const router = useRouter()
+  const { user, isLoaded } = useUser()
   const {
     remainingSeconds,
     focusSeconds,
@@ -25,6 +27,10 @@ export function FloatingTimer() {
     pauseTimer,
     startTimer,
   } = useFocusTimer()
+
+  if (!isLoaded || !user) {
+    return null
+  }
 
   // Only show when a session is active (either actively running or paused with progress)
   const hasActiveSession = (timerRunning || (focusSeconds > 0 && remainingSeconds > 0)) && !isCompleted
