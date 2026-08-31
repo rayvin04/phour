@@ -160,9 +160,9 @@ function LandingPage() {
                 </div>
               </div>
               <div className="mock-panel">
-                <div className="mock-panel__row"><span className="task-status task-status--done" /> <span className="task-copy">Fix authentication bug in project</span> <span className="task-pill" /></div>
-                <div className="mock-panel__row"><span className="task-status" /> <span className="task-copy">Submit database project before 11:59 PM</span> <span className="task-pill task-pill--warn" /></div>
-                <div className="mock-panel__row"><span className="task-status task-status--done" /> <span className="task-copy">Review Java programming notes</span> <span className="task-pill" /></div>
+                <div className="mock-panel__row"><span /> <span /> <span /></div>
+                <div className="mock-panel__row"><span /> <span className="short" /> <span className="done" /></div>
+                <div className="mock-panel__row"><span /> <span className="short" /> <span className="done" /></div>
               </div>
             </div>
           </div>
