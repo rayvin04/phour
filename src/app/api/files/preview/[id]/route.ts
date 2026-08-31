@@ -61,8 +61,13 @@ export async function GET(request: Request, context: RouteContext<'/api/files/pr
     }
 
     return new Response(arrayBuffer, { headers })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unexpected server error.'
-    return NextResponse.json({ error: message }, { status: 500 })
+  } catch (error) {
+    return failure(error)
   }
+}
+
+function failure(error: unknown) {
+  const message = error instanceof Error ? error.message : 'Unexpected server error.'
+  const status = message === 'Unauthorized' ? 401 : message === 'Forbidden' ? 403 : 400
+  return NextResponse.json({ error: message }, { status })
 }

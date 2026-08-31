@@ -22,24 +22,22 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const taskState = useTasks()
   const { isLoaded, user } = useUser()
   const { notify } = useToast()
-  const attemptedUserId = useRef<string | null>(null)
+  const [attemptedUserId, setAttemptedUserId] = useState<string | null>(null)
   const previousUserId = useRef<string | null | undefined>(user?.id)
-  const tasksRef = useRef(taskState.tasks)
-  tasksRef.current = taskState.tasks
 
   useEffect(() => {
     if (previousUserId.current === user?.id) return
     previousUserId.current = user?.id
-    attemptedUserId.current = null
+    setAttemptedUserId(null)
     taskState.resetTasks()
   }, [taskState.resetTasks, user?.id])
 
   const ensureLoaded = useCallback(async () => {
-    if (!isLoaded || !user || attemptedUserId.current === user.id) return
-    attemptedUserId.current = user.id
+    if (!isLoaded || !user || attemptedUserId === user.id) return
+    setAttemptedUserId(user.id)
     const result = await taskState.loadTasks()
     if (!result.ok) notify(result.error, 'error')
-  }, [isLoaded, notify, taskState.loadTasks, user])
+  }, [attemptedUserId, isLoaded, notify, taskState.loadTasks, user])
 
   const addTask = useCallback(async (title: string, details?: Partial<Task>) => {
     const result = await taskState.addTask(title, details)
@@ -59,12 +57,12 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }, [notify, taskState.updateTask])
 
   const toggleTask = useCallback(async (id: string) => {
-    const wasCompleted = tasksRef.current.find((t) => t.id === id)?.done ?? false
+    const wasCompleted = taskState.tasks.find((t) => t.id === id)?.done ?? false
     const result = await taskState.toggleTask(id)
     if (result.ok) notify(wasCompleted ? 'Task marked incomplete' : 'Task completed ✓')
     else notify(result.error, 'error')
     return result.ok
-  }, [notify, taskState.toggleTask])
+  }, [notify, taskState.tasks, taskState.toggleTask])
 
   const deleteTask = useCallback(async (id: string) => {
     const result = await taskState.deleteTask(id)
@@ -87,7 +85,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     return result.ok
   }, [notify, taskState.updateTask])
 
-  const isLoading = taskState.isLoading || (isLoaded && Boolean(user) && attemptedUserId.current !== user?.id && !taskState.error)
+  const isLoading = taskState.isLoading || (isLoaded && Boolean(user) && attemptedUserId !== user?.id && !taskState.error)
   const value = useMemo(() => ({
     ...taskState,
     isLoading,

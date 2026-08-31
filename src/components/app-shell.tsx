@@ -1,7 +1,8 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import React from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useUser } from '@clerk/nextjs'
+import React, { useEffect } from 'react'
 
 const items: Array<[string,string,React.ReactNode?]> = [
   ['Today','/','🏠'],
@@ -9,15 +10,27 @@ const items: Array<[string,string,React.ReactNode?]> = [
   ['Habits','/habits','🔁'],
   ['Focus timer','/focus-timer','⏱️'],
   ['Insights','/insights','📊'],
-  ['Files','/files','📁']
+  ['Files','/files','📁'],
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname()
+  const router = useRouter()
+  const { isLoaded, user } = useUser()
+
+  useEffect(() => {
+    if (isLoaded && !user) {
+      router.replace('/')
+    }
+  }, [isLoaded, router, user])
+
+  if (!isLoaded || !user) {
+    return null
+  }
+
   return (
     <main className="shell">
       <aside className="sidebar">
-        <Link className="side-brand" href="/">phour<span>•</span></Link>
         <nav aria-label="Main navigation">
           {items.map(([label, href, icon]) => (
             <Link className={path === href ? 'active' : ''} href={href} key={href}>

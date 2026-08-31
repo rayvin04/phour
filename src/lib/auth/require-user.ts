@@ -1,3 +1,12 @@
 import 'server-only'
 import { auth } from '@clerk/nextjs/server'
-export async function requireClerkUserId() { const { userId } = await auth(); if (!userId) throw new Error('Unauthorized'); return userId }
+
+export async function requireClerkUserId() {
+  const { userId } = await auth()
+
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+
+  return userId
+}

@@ -9,7 +9,11 @@ export function ThemeToggle() {
   const { isLoaded, user } = useUser()
   const [mounted, setMounted] = useState(false)
 
-  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    // This is the standard client-mount gate for theme hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true)
+  }, [])
   if (!mounted) return null
 
   const current = theme === 'system' ? resolvedTheme : theme

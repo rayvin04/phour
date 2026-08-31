@@ -33,13 +33,13 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   const [habits, setHabits] = useState<Habit[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const attemptedUserId = useRef<string | null>(null)
+  const [attemptedUserId, setAttemptedUserId] = useState<string | null>(null)
   const previousUserId = useRef<string | null | undefined>(user?.id)
 
   useEffect(() => {
     if (previousUserId.current === user?.id) return
     previousUserId.current = user?.id
-    attemptedUserId.current = null
+    setAttemptedUserId(null)
     setHabits([])
     setError(null)
     setIsLoading(false)
@@ -52,8 +52,8 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const ensureLoaded = useCallback(async () => {
-    if (!isLoaded || !user || attemptedUserId.current === user.id) return
-    attemptedUserId.current = user.id
+    if (!isLoaded || !user || attemptedUserId === user.id) return
+    setAttemptedUserId(user.id)
     setIsLoading(true)
     setError(null)
     try {
@@ -65,7 +65,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [fail, isLoaded, notify, user])
+  }, [attemptedUserId, fail, isLoaded, notify, user])
 
   const addHabit = useCallback(async (title: string) => {
     const trimmedTitle = title.trim()
@@ -117,7 +117,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fail, habits, notify])
 
-  const isWaitingForInitialLoad = isLoaded && Boolean(user) && attemptedUserId.current !== user?.id && !error
+  const isWaitingForInitialLoad = isLoaded && Boolean(user) && attemptedUserId !== user?.id && !error
   const value = useMemo(() => ({ habits, isLoading: isLoading || isWaitingForInitialLoad, error, addHabit, toggleHabit, ensureLoaded }), [addHabit, ensureLoaded, error, habits, isLoading, isWaitingForInitialLoad, toggleHabit])
   return <HabitsContext.Provider value={value}>{children}</HabitsContext.Provider>
 }

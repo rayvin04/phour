@@ -404,7 +404,9 @@ export default function FilesPage() {
   }, [toast])
 
   useEffect(() => {
-    fetchFiles()
+    // This is a client-only data hydration effect; the fetch is intentionally triggered once per mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchFiles()
   }, [fetchFiles])
 
   const uploadFile = useCallback((file: File) => {

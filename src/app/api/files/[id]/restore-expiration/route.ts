@@ -9,8 +9,13 @@ export async function POST(request: Request, context: RouteContext<'/api/files/[
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     const updated = await filesRepository.update(userId, id, { isPermanent: false, expiresAt })
     return NextResponse.json(updated)
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unexpected'
-    return NextResponse.json({ error: message }, { status: 400 })
+  } catch (error) {
+    return failure(error)
   }
+}
+
+function failure(error: unknown) {
+  const message = error instanceof Error ? error.message : 'Unexpected server error.'
+  const status = message === 'Unauthorized' ? 401 : message === 'Forbidden' ? 403 : 400
+  return NextResponse.json({ error: message }, { status })
 }
