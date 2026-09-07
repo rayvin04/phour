@@ -15,3 +15,7 @@ export type PersistedFile = AppwriteDocument & {
   isPermanent: boolean
   previewUrl?: string
 }
+export type PersistedNote = AppwriteDocument & { title: string; content: string; color: string; type: 'normal' | 'task' | 'habit'; dueDate?: string; x: number; y: number; width: number; height: number; zIndex: number; rotation: number }
+export type PersistedNoteImage = AppwriteDocument & { storageFileId: string; filename: string; mimeType: string; bucketId: string; x: number; y: number; width: number; height: number; zIndex: number; rotation: number }
+export type PersistedCanvasState = AppwriteDocument & { zoom: number; panX: number; panY: number }
+export type PersistedRelationship = AppwriteDocument & { noteId: string; entityType: 'task' | 'habit'; entityId: string }

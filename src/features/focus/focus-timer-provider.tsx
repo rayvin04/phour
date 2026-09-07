@@ -30,6 +30,8 @@ type FocusTimerContextValue = {
   startTimer: () => void
   pauseTimer: () => void
   resetTimer: () => Promise<void>
+  floatingTimerHidden: boolean
+  setFloatingTimerHidden: (hidden: boolean) => void
 }
 
 const FocusTimerContext = createContext<FocusTimerContextValue | null>(null)
@@ -83,9 +85,18 @@ export function FocusTimerProvider({ children }: { children: React.ReactNode }) 
   const [sessionCount, setSessionCount] = useState(initial.sessionCount)
   const [isSaving, setIsSaving] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
+  const [floatingTimerHidden, setFloatingTimerHidden] = useState(false)
 
   const isCompleting = useRef(false)
   const sessionPersisted = useRef(false)
+
+  useEffect(() => {
+    setFloatingTimerHidden(localStorage.getItem('phour_floating_timer_hidden') === 'true')
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('phour_floating_timer_hidden', String(floatingTimerHidden))
+  }, [floatingTimerHidden])
 
   const totalSeconds = durationMinutes * 60
 
@@ -238,6 +249,8 @@ export function FocusTimerProvider({ children }: { children: React.ReactNode }) 
     startTimer,
     pauseTimer,
     resetTimer,
+    floatingTimerHidden,
+    setFloatingTimerHidden,
   }), [
     durationMinutes,
     setSelectedDurationMinutes,
@@ -251,6 +264,8 @@ export function FocusTimerProvider({ children }: { children: React.ReactNode }) 
     startTimer,
     pauseTimer,
     resetTimer,
+    floatingTimerHidden,
+    setFloatingTimerHidden,
   ])
 
   return <FocusTimerContext.Provider value={value}>{children}</FocusTimerContext.Provider>

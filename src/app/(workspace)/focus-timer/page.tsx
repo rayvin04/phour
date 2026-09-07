@@ -30,6 +30,8 @@ export default function FocusTimerPage() {
     startTimer,
     pauseTimer,
     resetTimer,
+    floatingTimerHidden,
+    setFloatingTimerHidden,
   } = useFocusTimer()
 
   const [customInput, setCustomInput] = useState('')
@@ -193,6 +195,9 @@ export default function FocusTimerPage() {
             </Button>
           </div>
         </Card>
+        <Button type="button" variant="quiet" onClick={() => setFloatingTimerHidden(!floatingTimerHidden)}>
+          {floatingTimerHidden ? 'Show floating timer' : 'Hide floating timer'}
+        </Button>
       </div>
     </>
   )

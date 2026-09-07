@@ -3,14 +3,17 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   BarChartIcon,
   CheckSquareIcon,
   FolderIcon,
   HomeIcon,
   RepeatIcon,
+  StickyNoteIcon,
   TimerIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@/components/ui/icons'
 
 type NavItem = {
@@ -26,12 +29,26 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Focus timer', href: '/focus-timer', icon: TimerIcon },
   { label: 'Insights', href: '/insights', icon: BarChartIcon },
   { label: 'Files', href: '/files', icon: FolderIcon },
+  { label: 'Notes', href: '/notes', icon: StickyNoteIcon },
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname()
   const router = useRouter()
   const { isLoaded, user } = useUser()
+  const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    setCollapsed(window.localStorage.getItem('phour_sidebar_collapsed') === 'true')
+  }, [])
+
+  function toggleSidebar() {
+    setCollapsed((value) => {
+      const next = !value
+      window.localStorage.setItem('phour_sidebar_collapsed', String(next))
+      return next
+    })
+  }
 
   useEffect(() => {
     if (isLoaded && !user) {
@@ -66,8 +83,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <main className="shell">
+    <main className={`shell${collapsed ? ' shell--sidebar-collapsed' : ''}`}>
       <aside className="sidebar" aria-label="Sidebar navigation">
+        <button type="button" className="sidebar-collapse" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          {collapsed ? <ChevronRightIcon size={16} /> : <ChevronLeftIcon size={16} />}
+        </button>
         <nav aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon
@@ -78,6 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 key={item.href}
                 prefetch={true}
+                  aria-current={isActive ? 'page' : undefined}
                 title={item.label}
               >
                 <span className="nav-icon" aria-hidden="true">
@@ -90,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <p className="sidebar-note">Make space for what matters.</p>
       </aside>
-      <section className="content">{children}</section>
+      <section className={`content${path === '/notes' ? ' content--canvas' : ''}`}>{children}</section>
     </main>
   )
 }

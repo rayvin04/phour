@@ -2,7 +2,6 @@ export function PlaceholderPage({ title, description }: { title: string; descrip
   return (
     <>
       <div className="page-intro">
-        <p className="eyebrow">Phour workspace</p>
         <h1>{title}</h1>
         <p className="lede">{description}</p>
       </div>

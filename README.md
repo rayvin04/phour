@@ -69,6 +69,16 @@ Instead of juggling fragmented tools, Phour helps you stay centered on what matt
 
 Use Phour in production at: https://phour.r4yv.tech
 
+## Appwrite schema sync
+
+Phour includes an idempotent Appwrite schema synchronizer backed by the official Node Server SDK. Configure the Appwrite values in `.env.local`, then run:
+
+```bash
+pnpm appwrite:sync
+```
+
+The command creates or reconciles the Notes collections, attributes, indexes, and server-only permissions. Existing collection IDs are preserved and written back to `.env.local`; existing resources are skipped safely.
+
 ## Roadmap
 
 Planned improvements include:

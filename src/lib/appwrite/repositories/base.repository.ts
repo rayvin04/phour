@@ -50,6 +50,12 @@ export class UserRepository<T extends AppwriteDocument> {
     return result.documents.filter((document) => document.userId === userId)
   }
 
+  async get(userId: string, id: string) {
+    const document = await appwriteRequest<T>(this.path(id))
+    if (document.userId !== userId) throw new Error('Forbidden')
+    return document
+  }
+
   async create(userId: string, data: Omit<T, keyof AppwriteDocument>) {
     return appwriteRequest<T>(this.path(), {
       method: 'POST',

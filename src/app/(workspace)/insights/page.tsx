@@ -30,7 +30,6 @@ export default function InsightsPage() {
   return (
     <>
       <div className="page-intro">
-        <p className="eyebrow">Workspace · Insights</p>
         <h1>Insights</h1>
         <p className="lede">A clear view of your momentum today.</p>
       </div>

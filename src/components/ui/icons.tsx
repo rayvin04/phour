@@ -132,6 +132,27 @@ export function FolderIcon({ size = 18, className, ...props }: IconProps) {
   )
 }
 
+export function StickyNoteIcon({ size = 18, className, ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" {...props}>
+      <path d="M5 3h14a2 2 0 0 1 2 2v10l-6 6H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+      <path d="M15 21v-5h6M7 8h10M7 12h7" />
+    </svg>
+  )
+}
+
+export function ChevronLeftIcon({ size = 16, className, ...props }: IconProps) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" {...props}><path d="m15 18-6-6 6-6" /></svg>
+}
+
+export function ChevronRightIcon({ size = 16, className, ...props }: IconProps) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" {...props}><path d="m9 18 6-6-6-6" /></svg>
+}
+
+export function ChevronDownIcon({ size = 16, className, ...props }: IconProps) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true" {...props}><path d="m6 9 6 6 6-6" /></svg>
+}
+
 export function SunIcon({ size = 16, className, ...props }: IconProps) {
   return (
     <svg

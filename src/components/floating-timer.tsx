@@ -4,7 +4,7 @@ import React, { memo } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { usePathname, useRouter } from 'next/navigation'
 import { useFocusTimer } from '@/features/focus/focus-timer-provider'
-import { PauseIcon, PlayIcon } from '@/components/ui/icons'
+import { PauseIcon, PlayIcon, XIcon } from '@/components/ui/icons'
 
 function pad(n: number) {
   return String(Math.floor(n)).padStart(2, '0')
@@ -27,6 +27,8 @@ export const FloatingTimer = memo(function FloatingTimer() {
     isCompleted,
     pauseTimer,
     startTimer,
+    floatingTimerHidden,
+    setFloatingTimerHidden,
   } = useFocusTimer()
 
   if (!isLoaded || !user) {
@@ -37,7 +39,7 @@ export const FloatingTimer = memo(function FloatingTimer() {
   const hasActiveSession = (timerRunning || (focusSeconds > 0 && remainingSeconds > 0)) && !isCompleted
 
   // If we are already on the full focus timer page, hide the floating widget
-  if (!hasActiveSession || pathname === '/focus-timer') {
+  if (!hasActiveSession || pathname === '/focus-timer' || floatingTimerHidden) {
     return null
   }
 
@@ -86,6 +88,15 @@ export const FloatingTimer = memo(function FloatingTimer() {
         title={timerRunning ? 'Pause focus timer' : 'Resume focus timer'}
       >
         {timerRunning ? <PauseIcon size={12} /> : <PlayIcon size={12} />}
+      </button>
+      <button
+        type="button"
+        className="floating-timer-close"
+        onClick={(event) => { event.stopPropagation(); setFloatingTimerHidden(true) }}
+        aria-label="Hide floating timer"
+        title="Hide floating timer"
+      >
+        <XIcon size={12} />
       </button>
     </aside>
   )

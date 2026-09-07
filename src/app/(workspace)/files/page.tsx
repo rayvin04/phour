@@ -32,6 +32,42 @@ export type FileMeta = {
 }
 
 type ViewMode = 'gallery' | 'list'
+type MenuPlacement = 'below' | 'above'
+
+function useMenuPlacement(
+  open: boolean,
+  triggerRef: React.RefObject<HTMLDivElement | null>,
+  menuRef: React.RefObject<HTMLDivElement | null>,
+) {
+  const [placement, setPlacement] = useState<MenuPlacement>('below')
+
+  useEffect(() => {
+    if (!open) return
+
+    function measure() {
+      const trigger = triggerRef.current?.getBoundingClientRect()
+      const menu = menuRef.current
+      if (!trigger || !menu) return
+
+      const roomBelow = window.innerHeight - trigger.bottom - 12
+      const roomAbove = trigger.top - 12
+      const shouldFlip = menu.scrollHeight > roomBelow && roomAbove > roomBelow
+      setPlacement(shouldFlip ? 'above' : 'below')
+      menu.style.maxHeight = `${Math.max(120, Math.max(roomBelow, roomAbove))}px`
+    }
+
+    const frame = window.requestAnimationFrame(measure)
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
+  }, [open, triggerRef, menuRef])
+
+  return placement
+}
 
 function humanSize(bytes: number): string {
   if (!bytes || bytes <= 0) return '0 B'
@@ -156,28 +192,168 @@ function RenameModal({
   )
 }
 
-// ─── Full File Preview Modal ─────────────────────────────────────────────────
-function FileViewerModal({
+type ImageDrag = { x: number; y: number; panX: number; panY: number }
+
+function FilePreviewContent({
   file,
-  onClose,
+  zoom,
+  pan,
+  dragRef,
+  onPanChange,
 }: {
   file: FileMeta
-  onClose: () => void
+  zoom: number
+  pan: { x: number; y: number }
+  dragRef: React.MutableRefObject<ImageDrag | null>
+  onPanChange: (pan: { x: number; y: number }) => void
 }) {
   const isImage = file.mimeType.startsWith('image/')
   const isPdf = file.mimeType === 'application/pdf'
+  const isText = file.mimeType.startsWith('text/') || /json|xml|javascript/.test(file.mimeType)
   const isVideo = file.mimeType.startsWith('video/')
   const isAudio = file.mimeType.startsWith('audio/')
   const viewSrc = `/api/files/preview/${file.$id}?view=1`
   const downloadSrc = `/api/files/preview/${file.$id}?download=1`
 
+  if (isImage) {
+    return (
+      <div
+        className={`file-viewer-image-wrap${zoom > 1 ? ' file-viewer-image-wrap--zoomed' : ''}`}
+        onPointerDown={(event) => {
+          if (zoom <= 1) return
+          event.currentTarget.setPointerCapture(event.pointerId)
+          dragRef.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y }
+        }}
+        onPointerMove={(event) => {
+          const drag = dragRef.current
+          if (!drag) return
+          onPanChange({ x: drag.panX + event.clientX - drag.x, y: drag.panY + event.clientY - drag.y })
+        }}
+        onPointerUp={() => { dragRef.current = null }}
+        onPointerCancel={() => { dragRef.current = null }}
+      >
+        <img
+          src={viewSrc}
+          alt={file.filename}
+          className="file-viewer-img"
+          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          draggable={false}
+        />
+      </div>
+    )
+  }
+
+  if (isPdf || isText) return <iframe src={viewSrc} title={file.filename} className="file-viewer-iframe" />
+  if (isVideo) return <video src={viewSrc} controls autoPlay className="file-viewer-video" />
+  if (isAudio) {
+    return (
+      <div className="file-viewer-audio-wrap">
+        <span className="file-viewer-large-icon" aria-hidden="true"><MusicIcon size={48} /></span>
+        <audio src={viewSrc} controls className="file-viewer-audio" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="file-viewer-fallback">
+      <span className="file-viewer-large-icon" aria-hidden="true"><FileTypeIcon mimeType={file.mimeType} size={48} /></span>
+      <p className="file-viewer-fallback-name">{file.filename}</p>
+      <p className="file-viewer-fallback-meta">{file.mimeType} · {humanSize(file.size)}</p>
+      <a href={downloadSrc} download={file.filename} className="button button-primary" title="Download file">
+        <DownloadIcon size={15} />
+        <span>Download file</span>
+      </a>
+    </div>
+  )
+}
+
+// ─── Full File Preview Modal ─────────────────────────────────────────────────
+function FileViewerModal({
+  file,
+  files,
+  onNavigate,
+  onClose,
+}: {
+  file: FileMeta
+  files: FileMeta[]
+  onNavigate: (file: FileMeta) => void
+  onClose: () => void
+}) {
+  const isImage = file.mimeType.startsWith('image/')
+  const viewSrc = `/api/files/preview/${file.$id}?view=1`
+  const downloadSrc = `/api/files/preview/${file.$id}?download=1`
+  const fileIndex = files.findIndex((item) => item.$id === file.$id)
+  const canGoPrevious = fileIndex > 0
+  const canGoNext = fileIndex >= 0 && fileIndex < files.length - 1
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const dragRef = useRef<ImageDrag | null>(null)
+  const [compareFile, setCompareFile] = useState<FileMeta | null>(null)
+  const [compareZoom, setCompareZoom] = useState(1)
+  const [comparePan, setComparePan] = useState({ x: 0, y: 0 })
+  const compareDragRef = useRef<ImageDrag | null>(null)
+  const compareBodyRef = useRef<HTMLDivElement>(null)
+  const [splitPercent, setSplitPercent] = useState(50)
+
+  useEffect(() => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }, [file.$id])
+
+  useEffect(() => {
+    setCompareZoom(1)
+    setComparePan({ x: 0, y: 0 })
+  }, [compareFile?.$id])
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowLeft' && canGoPrevious) onNavigate(files[fileIndex - 1])
+      if (e.key === 'ArrowRight' && canGoNext) onNavigate(files[fileIndex + 1])
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  }, [canGoNext, canGoPrevious, fileIndex, files, onClose, onNavigate])
+
+  function changeZoom(nextZoom: number) {
+    const clamped = Math.min(3, Math.max(1, nextZoom))
+    setZoom(clamped)
+    if (clamped === 1) setPan({ x: 0, y: 0 })
+  }
+
+  function openBeside() {
+    const beside = files[fileIndex + 1] ?? files[fileIndex - 1]
+    if (beside) setCompareFile(beside)
+  }
+
+  function changeCompareZoom(nextZoom: number) {
+    const clamped = Math.min(3, Math.max(1, nextZoom))
+    setCompareZoom(clamped)
+    if (clamped === 1) setComparePan({ x: 0, y: 0 })
+  }
+
+  function resizeCompare(event: React.PointerEvent<HTMLDivElement>) {
+    const body = compareBodyRef.current
+    if (!body) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const vertical = window.matchMedia('(max-width: 640px)').matches
+    const move = (moveEvent: PointerEvent) => {
+      const bounds = body.getBoundingClientRect()
+      const position = vertical ? moveEvent.clientY - bounds.top : moveEvent.clientX - bounds.left
+      const size = vertical ? bounds.height : bounds.width
+      setSplitPercent(Math.min(80, Math.max(20, (position / size) * 100)))
+    }
+    const stop = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop, { once: true })
+  }
+
+  function nudgeCompareSplit(delta: number) {
+    setSplitPercent((current) => Math.min(80, Math.max(20, current + delta)))
+  }
 
   return (
     <div className="file-modal-backdrop" onClick={onClose}>
@@ -203,6 +379,20 @@ function FileViewerModal({
             </div>
           </div>
           <div className="file-viewer-actions">
+            {isImage && (
+              <div className="file-viewer-zoom" aria-label="Image zoom controls">
+                <button type="button" className="file-viewer-control" onClick={() => changeZoom(zoom - 0.25)} disabled={zoom <= 1} aria-label="Zoom out">−</button>
+                <span aria-live="polite">{Math.round(zoom * 100)}%</span>
+                <button type="button" className="file-viewer-control" onClick={() => changeZoom(zoom + 0.25)} disabled={zoom >= 3} aria-label="Zoom in">+</button>
+              </div>
+            )}
+            {canGoPrevious && <button type="button" className="button button-quiet file-viewer-nav" onClick={() => onNavigate(files[fileIndex - 1])} aria-label="Previous file">←</button>}
+            {canGoNext && <button type="button" className="button button-quiet file-viewer-nav" onClick={() => onNavigate(files[fileIndex + 1])} aria-label="Next file">→</button>}
+            {!compareFile && files.length > 1 && (
+              <button type="button" className="button button-quiet file-viewer-btn" onClick={openBeside} title="Open another file beside this preview">
+                <span>Open beside</span>
+              </button>
+            )}
             <a
               href={downloadSrc}
               download={file.filename}
@@ -234,43 +424,58 @@ function FileViewerModal({
           </div>
         </div>
 
-        <div className="file-viewer-content">
-          {isImage ? (
-            <div className="file-viewer-image-wrap">
-              <img src={viewSrc} alt={file.filename} className="file-viewer-img" />
+        <div ref={compareBodyRef} className={`file-viewer-body${compareFile ? ' file-viewer-body--compare' : ''}`}>
+          <section className="file-viewer-pane" style={compareFile ? { flexBasis: `${splitPercent}%` } : undefined} aria-label={`Preview of ${file.filename}`}>
+            <div className="file-viewer-content">
+              <FilePreviewContent file={file} zoom={zoom} pan={pan} dragRef={dragRef} onPanChange={setPan} />
             </div>
-          ) : isPdf ? (
-            <iframe src={viewSrc} title={file.filename} className="file-viewer-iframe" />
-          ) : isVideo ? (
-            <div className="file-viewer-media-wrap">
-              <video src={viewSrc} controls autoPlay className="file-viewer-video" />
-            </div>
-          ) : isAudio ? (
-            <div className="file-viewer-audio-wrap">
-              <span className="file-viewer-large-icon" aria-hidden="true">
-                <MusicIcon size={48} />
-              </span>
-              <audio src={viewSrc} controls className="file-viewer-audio" />
-            </div>
-          ) : (
-            <div className="file-viewer-fallback">
-              <span className="file-viewer-large-icon" aria-hidden="true">
-                <FileTypeIcon mimeType={file.mimeType} size={48} />
-              </span>
-              <p className="file-viewer-fallback-name">{file.filename}</p>
-              <p className="file-viewer-fallback-meta">
-                {file.mimeType} · {humanSize(file.size)}
-              </p>
-              <a
-                href={downloadSrc}
-                download={file.filename}
-                className="button button-primary"
-                title="Download file"
-              >
-                <DownloadIcon size={15} />
-                <span>Download file</span>
-              </a>
-            </div>
+          </section>
+          {compareFile && (
+            <>
+              <div
+                className="file-viewer-divider"
+                role="separator"
+                aria-label="Resize comparison panes"
+                aria-valuemin={20}
+                aria-valuemax={80}
+                aria-valuenow={Math.round(splitPercent)}
+                tabIndex={0}
+                onPointerDown={resizeCompare}
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                    event.preventDefault()
+                    nudgeCompareSplit(-5)
+                  }
+                  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                    event.preventDefault()
+                    nudgeCompareSplit(5)
+                  }
+                }}
+              />
+              <section className="file-viewer-pane file-viewer-pane--compare" style={{ flexBasis: `${100 - splitPercent}%` }} aria-label={`Preview of ${compareFile.filename}`}>
+              <div className="file-viewer-compare-header">
+                <div className="file-viewer-title-box">
+                  <span className="file-viewer-icon" aria-hidden="true"><FileTypeIcon mimeType={compareFile.mimeType} size={18} /></span>
+                  <h3 className="file-viewer-title" title={compareFile.filename}>{compareFile.filename}</h3>
+                </div>
+                <div className="file-viewer-actions">
+                  {compareFile.mimeType.startsWith('image/') && (
+                    <div className="file-viewer-zoom" aria-label="Compare image zoom controls">
+                      <button type="button" className="file-viewer-control" onClick={() => changeCompareZoom(compareZoom - 0.25)} disabled={compareZoom <= 1} aria-label="Zoom out compare image">−</button>
+                      <span aria-live="polite">{Math.round(compareZoom * 100)}%</span>
+                      <button type="button" className="file-viewer-control" onClick={() => changeCompareZoom(compareZoom + 0.25)} disabled={compareZoom >= 3} aria-label="Zoom in compare image">+</button>
+                    </div>
+                  )}
+                  <button type="button" className="icon-button file-viewer-close" onClick={() => setCompareFile(null)} aria-label="Close comparison pane" title="Close comparison pane">
+                    <XIcon size={15} />
+                  </button>
+                </div>
+              </div>
+              <div className="file-viewer-content">
+                <FilePreviewContent file={compareFile} zoom={compareZoom} pan={comparePan} dragRef={compareDragRef} onPanChange={setComparePan} />
+              </div>
+              </section>
+            </>
           )}
         </div>
       </div>
@@ -297,6 +502,8 @@ const FileCard = memo(function FileCard({
   const [menuOpen, setMenuOpen] = useState(false)
   const [imgError, setImgError] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuPopupRef = useRef<HTMLDivElement>(null)
+  const menuPlacement = useMenuPlacement(menuOpen, menuRef, menuPopupRef)
 
   const canHaveThumbnail =
     (file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf') && !imgError
@@ -340,7 +547,7 @@ const FileCard = memo(function FileCard({
           <p className="fc-name" title={file.filename}>
             {file.filename}
           </p>
-          <div className="fc-menu-wrap" ref={menuRef} onClick={(e) => e.stopPropagation()}>
+          <div className="fc-menu-wrap" ref={menuRef} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
             <button
               className="icon-button fc-dots"
               aria-label="File options"
@@ -353,7 +560,7 @@ const FileCard = memo(function FileCard({
               <MoreHorizontalIcon size={14} />
             </button>
             {menuOpen && (
-              <div className="fc-dropdown" role="menu">
+              <div ref={menuPopupRef} className={`fc-dropdown fc-dropdown--${menuPlacement}`} role="menu">
                 <button
                   role="menuitem"
                   onClick={() => {
@@ -460,6 +667,8 @@ const FileRow = memo(function FileRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuPopupRef = useRef<HTMLDivElement>(null)
+  const menuPlacement = useMenuPlacement(menuOpen, menuRef, menuPopupRef)
   const expiresIn = file.expiresAt ? daysUntil(file.expiresAt) : null
   const expiryWarning = !file.isPermanent && expiresIn !== null && expiresIn < 7
 
@@ -501,7 +710,7 @@ const FileRow = memo(function FileRow({
           <span className="fbadge">Temporary</span>
         )}
       </div>
-      <div className="fc-menu-wrap" ref={menuRef} onClick={(e) => e.stopPropagation()}>
+      <div className="fc-menu-wrap" ref={menuRef} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <button
           className="icon-button fc-dots"
           aria-label="File options"
@@ -512,7 +721,7 @@ const FileRow = memo(function FileRow({
           <MoreHorizontalIcon size={14} />
         </button>
         {menuOpen && (
-          <div className="fc-dropdown" role="menu">
+          <div ref={menuPopupRef} className={`fc-dropdown fc-dropdown--${menuPlacement}`} role="menu">
             <button
               role="menuitem"
               onClick={() => {
@@ -762,6 +971,8 @@ export default function FilesPage() {
       {previewTarget && (
         <FileViewerModal
           file={previewTarget}
+          files={files ?? []}
+          onNavigate={setPreviewTarget}
           onClose={() => setPreviewTarget(null)}
         />
       )}
@@ -830,7 +1041,10 @@ export default function FilesPage() {
           tabIndex={0}
           aria-label="Upload area — drag and drop a file or click to browse"
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') onBrowse()
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              onBrowse()
+            }
           }}
         >
           <div className="drop-zone-inner">
@@ -842,16 +1056,11 @@ export default function FilesPage() {
             </p>
             <p className="drop-zone-sub">
               or{' '}
-              <button
-                type="button"
+              <span
                 className="drop-zone-link"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onBrowse()
-                }}
               >
                 browse files
-              </button>
+              </span>
             </p>
           </div>
           {uploading && (
