@@ -1,9 +1,10 @@
 'use client'
 
-import React from 'react'
+import React, { memo } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { usePathname, useRouter } from 'next/navigation'
 import { useFocusTimer } from '@/features/focus/focus-timer-provider'
+import { PauseIcon, PlayIcon } from '@/components/ui/icons'
 
 function pad(n: number) {
   return String(Math.floor(n)).padStart(2, '0')
@@ -15,7 +16,7 @@ function formatDuration(seconds: number) {
   return `${pad(m)}:${pad(s)}`
 }
 
-export function FloatingTimer() {
+export const FloatingTimer = memo(function FloatingTimer() {
   const pathname = usePathname()
   const router = useRouter()
   const { user, isLoaded } = useUser()
@@ -59,8 +60,14 @@ export function FloatingTimer() {
       onClick={handleClick}
       role="region"
       aria-label="Active focus timer"
+      title="Click to open Focus Timer"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter') handleClick() }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleClick()
+        }
+      }}
     >
       <div className="floating-timer-indicator">
         <span className={`floating-timer-dot${timerRunning ? ' floating-timer-dot--pulse' : ''}`} />
@@ -76,9 +83,10 @@ export function FloatingTimer() {
         className="floating-timer-action"
         onClick={handleToggle}
         aria-label={timerRunning ? 'Pause focus timer' : 'Resume focus timer'}
+        title={timerRunning ? 'Pause focus timer' : 'Resume focus timer'}
       >
-        {timerRunning ? '⏸' : '▶'}
+        {timerRunning ? <PauseIcon size={12} /> : <PlayIcon size={12} />}
       </button>
     </aside>
   )
-}
+})

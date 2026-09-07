@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import React, { memo, useState, type FormEvent } from 'react'
 import type { Task } from './types'
+import { ArchiveIcon, TrashIcon } from '@/components/ui/icons'
 
 type TaskRowProps = {
   task: Task
@@ -13,7 +14,7 @@ type TaskRowProps = {
 
 const PRIORITY_LABEL: Record<Task['priority'], string> = { low: 'Low', medium: 'Med', high: 'High' }
 
-export function TaskRow({ task, onToggle, onUpdate, onArchive, onDelete }: TaskRowProps) {
+export const TaskRow = memo(function TaskRow({ task, onToggle, onUpdate, onArchive, onDelete }: TaskRowProps) {
   const [subtaskDraft, setSubtaskDraft] = useState('')
 
   async function saveField(
@@ -45,12 +46,17 @@ export function TaskRow({ task, onToggle, onUpdate, onArchive, onDelete }: TaskR
   return (
     <article className={`task-row${task.done ? ' task-row--done' : ''}`}>
       <div className="task-main">
-        <input
-          type="checkbox"
-          checked={task.done}
-          onChange={() => void onToggle(task.id)}
-          aria-label={`Mark "${task.title}" as ${task.done ? 'incomplete' : 'complete'}`}
-        />
+        <label className="task-checkbox-label">
+          <input
+            type="checkbox"
+            checked={task.done}
+            onChange={() => void onToggle(task.id)}
+            aria-label={`Mark "${task.title}" as ${task.done ? 'incomplete' : 'complete'}`}
+            title={task.done ? 'Mark task incomplete' : 'Mark task complete'}
+          />
+          <span className="task-checkbox-custom" aria-hidden="true" />
+        </label>
+
         <input
           className="task-edit"
           defaultValue={task.title}
@@ -60,40 +66,58 @@ export function TaskRow({ task, onToggle, onUpdate, onArchive, onDelete }: TaskR
             void saveField(event.currentTarget, { title }, title === task.title, task.title)
           }}
           aria-label="Task title"
+          title="Click to edit task title"
         />
-        <label className="sr-only" htmlFor={`priority-${task.id}`}>Priority</label>
+
         <div className={`priority-wrapper priority-${task.priority}`}>
+          <label className="sr-only" htmlFor={`priority-${task.id}`}>Priority</label>
           <select
             id={`priority-${task.id}`}
             defaultValue={task.priority}
             onChange={(event) => void updatePriority(event.currentTarget)}
             aria-label={`Priority: ${task.priority}`}
+            title={`Task priority: ${task.priority}`}
           >
             {(['low', 'medium', 'high'] as const).map((p) => (
               <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>
             ))}
           </select>
         </div>
+
         <div className="task-actions">
-          <button type="button" className="text-button" onClick={() => void onArchive(task.id)}>
-            Archive
+          <button
+            type="button"
+            className="icon-action-btn"
+            onClick={() => void onArchive(task.id)}
+            title="Archive this task"
+            aria-label={`Archive "${task.title}"`}
+          >
+            <ArchiveIcon size={14} />
           </button>
           <button
             type="button"
-            className="text-button text-button--danger"
+            className="icon-action-btn icon-action-btn--danger"
             onClick={() => void onDelete(task.id)}
             aria-label={`Delete "${task.title}"`}
+            title="Delete this task"
           >
-            Delete
+            <TrashIcon size={14} />
           </button>
         </div>
       </div>
 
       <details className="task-details">
-        <summary>Details</summary>
+        <summary title="Expand task details">
+          <span>Details</span>
+          {task.subtasks.length > 0 && (
+            <span className="task-details-badge">
+              {task.subtasks.filter((s) => s.done).length}/{task.subtasks.length}
+            </span>
+          )}
+        </summary>
         <div className="details-grid">
           <label>
-            Due date
+            <span>Due date</span>
             <input
               type="date"
               defaultValue={task.dueDate || ''}
@@ -103,20 +127,20 @@ export function TaskRow({ task, onToggle, onUpdate, onArchive, onDelete }: TaskR
             />
           </label>
           <label>
-            Category
+            <span>Category</span>
             <input
               defaultValue={task.category || ''}
-              placeholder="e.g. Work"
+              placeholder="e.g. Focus, Work"
               onBlur={(event) =>
                 void saveField(event.currentTarget, { category: event.currentTarget.value }, event.currentTarget.value === (task.category || ''), task.category || '')
               }
             />
           </label>
           <label>
-            Tags
+            <span>Tags</span>
             <input
               defaultValue={task.tags.join(', ')}
-              placeholder="tag1, tag2"
+              placeholder="comma, separated"
               onBlur={(event) => {
                 const tags = event.currentTarget.value.split(',').map((t) => t.trim()).filter(Boolean)
                 void saveField(event.currentTarget, { tags }, tags.join(',') === task.tags.join(','), task.tags.join(', '))
@@ -124,10 +148,10 @@ export function TaskRow({ task, onToggle, onUpdate, onArchive, onDelete }: TaskR
             />
           </label>
           <label>
-            Notes
+            <span>Notes</span>
             <textarea
               defaultValue={task.notes || ''}
-              placeholder="Add a note…"
+              placeholder="Add personal notes or context…"
               onBlur={(event) =>
                 void saveField(event.currentTarget, { notes: event.currentTarget.value }, event.currentTarget.value === (task.notes || ''), task.notes || '')
               }
@@ -151,6 +175,7 @@ export function TaskRow({ task, onToggle, onUpdate, onArchive, onDelete }: TaskR
                         ),
                       }, true)
                     }
+                    title={subtask.done ? 'Mark subtask incomplete' : 'Mark subtask complete'}
                   />
                   <span className={subtask.done ? 'subtask-done' : ''}>{subtask.title}</span>
                 </label>
@@ -165,7 +190,7 @@ export function TaskRow({ task, onToggle, onUpdate, onArchive, onDelete }: TaskR
               placeholder="Add a subtask…"
               aria-label="New subtask"
             />
-            <button type="submit" className="text-button" disabled={!subtaskDraft.trim()}>
+            <button type="submit" className="text-button" disabled={!subtaskDraft.trim()} title="Add subtask">
               Add
             </button>
           </form>
@@ -173,4 +198,4 @@ export function TaskRow({ task, onToggle, onUpdate, onArchive, onDelete }: TaskR
       </details>
     </article>
   )
-}
+})

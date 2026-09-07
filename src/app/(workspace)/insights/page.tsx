@@ -1,23 +1,34 @@
 'use client'
 
-import { AppShell } from '@/components/app-shell'
+import React, { memo } from 'react'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTaskWorkspace } from '@/features/tasks/tasks-provider'
 import { useHabitsWorkspace } from '@/features/habits/habits-provider'
 import { useFocusTimer } from '@/features/focus/focus-timer-provider'
 
+// Isolated Focus Timer card component to prevent 1-second interval ticks from re-rendering the whole page
+const FocusTimeCard = memo(function FocusTimeCard() {
+  const { focusSeconds, sessionCount } = useFocusTimer()
+  const focusMinutes = Math.floor(focusSeconds / 60)
+  return (
+    <Card>
+      <small>Focus time</small>
+      <strong>{focusMinutes}<em>m</em></strong>
+      <span>{sessionCount > 0 ? `${sessionCount} session${sessionCount === 1 ? '' : 's'} today` : 'No sessions started'}</span>
+    </Card>
+  )
+})
+
 export default function InsightsPage() {
   const { activeTasks, completedCount, isLoading: tasksLoading } = useTaskWorkspace()
   const { habits, isLoading: habitsLoading } = useHabitsWorkspace()
-  const { focusSeconds, sessionCount } = useFocusTimer()
 
   const percent = activeTasks.length ? Math.round((completedCount / activeTasks.length) * 100) : 0
   const completedHabits = habits.filter((h) => h.completed).length
-  const focusMinutes = Math.floor(focusSeconds / 60)
 
   return (
-    <AppShell>
+    <>
       <div className="page-intro">
         <p className="eyebrow">Workspace · Insights</p>
         <h1>Insights</h1>
@@ -43,11 +54,7 @@ export default function InsightsPage() {
           )}
           <span>{tasksLoading ? 'Loading…' : 'Today\'s task progress'}</span>
         </Card>
-        <Card>
-          <small>Focus time</small>
-          <strong>{focusMinutes}<em>m</em></strong>
-          <span>{sessionCount > 0 ? `${sessionCount} session${sessionCount === 1 ? '' : 's'} today` : 'No sessions started'}</span>
-        </Card>
+        <FocusTimeCard />
       </div>
 
       <Card className="tasks">
@@ -81,6 +88,6 @@ export default function InsightsPage() {
           </div>
         )}
       </Card>
-    </AppShell>
+    </>
   )
 }

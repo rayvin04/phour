@@ -27,7 +27,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <ToastProvider>
               <WorkspaceProvider>
                 <header className="auth-header">
-                  <Link className="brand" href="/" aria-label="Phour home">
+                  <Link className="brand" href="/" aria-label="Phour home" prefetch={true} title="Phour home">
                     <Image
                       src="/branding/phour-name-logo.png"
                       alt="Phour logo"

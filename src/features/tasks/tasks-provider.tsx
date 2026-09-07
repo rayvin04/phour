@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useToast } from '@/components/ui/toast'
 import type { Task } from './types'
@@ -22,70 +22,90 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const taskState = useTasks()
   const { isLoaded, user } = useUser()
   const { notify } = useToast()
-  const [attemptedUserId, setAttemptedUserId] = useState<string | null>(null)
+  const attemptedUserId = useRef<string | null>(null)
+  const inFlightLoad = useRef<Promise<void> | null>(null)
   const previousUserId = useRef<string | null | undefined>(user?.id)
+
+  const resetTasks = taskState.resetTasks
+  const loadTasks = taskState.loadTasks
 
   useEffect(() => {
     if (previousUserId.current === user?.id) return
     previousUserId.current = user?.id
-    setAttemptedUserId(null)
-    taskState.resetTasks()
-  }, [taskState.resetTasks, user?.id])
+    attemptedUserId.current = null
+    inFlightLoad.current = null
+    resetTasks()
+  }, [resetTasks, user?.id])
 
   const ensureLoaded = useCallback(async () => {
-    if (!isLoaded || !user || attemptedUserId === user.id) return
-    setAttemptedUserId(user.id)
-    const result = await taskState.loadTasks()
-    if (!result.ok) notify(result.error, 'error')
-  }, [attemptedUserId, isLoaded, notify, taskState.loadTasks, user])
+    if (!isLoaded || !user) return
+    if (attemptedUserId.current === user.id) return
+    if (inFlightLoad.current) return inFlightLoad.current
 
+    attemptedUserId.current = user.id
+    inFlightLoad.current = (async () => {
+      try {
+        const result = await loadTasks()
+        if (!result.ok) notify(result.error, 'error')
+      } finally {
+        inFlightLoad.current = null
+      }
+    })()
+    await inFlightLoad.current
+  }, [isLoaded, loadTasks, notify, user])
+
+  const rawAddTask = taskState.addTask
   const addTask = useCallback(async (title: string, details?: Partial<Task>) => {
-    const result = await taskState.addTask(title, details)
+    const result = await rawAddTask(title, details)
     if (result.ok) notify('Task created')
     else notify(result.error, 'error')
     return result.ok
-  }, [notify, taskState.addTask])
+  }, [notify, rawAddTask])
 
+  const rawUpdateTask = taskState.updateTask
   const updateTask = useCallback(async (id: string, updates: Partial<Task>, silent = false) => {
-    const result = await taskState.updateTask(id, updates)
+    const result = await rawUpdateTask(id, updates)
     if (result.ok) {
       if (!silent) notify('Task updated')
     } else {
       notify(result.error, 'error')
     }
     return result.ok
-  }, [notify, taskState.updateTask])
+  }, [notify, rawUpdateTask])
 
+  const rawToggleTask = taskState.toggleTask
   const toggleTask = useCallback(async (id: string) => {
     const wasCompleted = taskState.tasks.find((t) => t.id === id)?.done ?? false
-    const result = await taskState.toggleTask(id)
+    const result = await rawToggleTask(id)
     if (result.ok) notify(wasCompleted ? 'Task marked incomplete' : 'Task completed ✓')
     else notify(result.error, 'error')
     return result.ok
-  }, [notify, taskState.tasks, taskState.toggleTask])
+  }, [notify, rawToggleTask, taskState.tasks])
 
+  const rawDeleteTask = taskState.deleteTask
   const deleteTask = useCallback(async (id: string) => {
-    const result = await taskState.deleteTask(id)
+    const result = await rawDeleteTask(id)
     if (result.ok) notify('Task deleted')
     else notify(result.error, 'error')
     return result.ok
-  }, [notify, taskState.deleteTask])
+  }, [notify, rawDeleteTask])
 
   const archiveTask = useCallback(async (id: string) => {
-    const result = await taskState.updateTask(id, { archived: true })
+    const result = await rawUpdateTask(id, { archived: true })
     if (result.ok) notify('Task archived')
     else notify(result.error, 'error')
     return result.ok
-  }, [notify, taskState.updateTask])
+  }, [notify, rawUpdateTask])
 
   const restoreTask = useCallback(async (id: string) => {
-    const result = await taskState.updateTask(id, { archived: false })
+    const result = await rawUpdateTask(id, { archived: false })
     if (result.ok) notify('Task restored')
     else notify(result.error, 'error')
     return result.ok
-  }, [notify, taskState.updateTask])
+  }, [notify, rawUpdateTask])
 
-  const isLoading = taskState.isLoading || (isLoaded && Boolean(user) && attemptedUserId !== user?.id && !taskState.error)
+  const isLoading = taskState.isLoading || (isLoaded && Boolean(user) && attemptedUserId.current !== user?.id && !taskState.error && taskState.tasks.length === 0)
+
   const value = useMemo(() => ({
     ...taskState,
     isLoading,

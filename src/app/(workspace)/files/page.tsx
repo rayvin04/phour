@@ -1,9 +1,23 @@
 'use client'
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { AppShell } from '@/components/app-shell'
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
+import {
+  ArchiveFileIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
+  FileTextIcon,
+  FilmIcon,
+  FolderIcon,
+  GridIcon,
+  ImageIcon,
+  ListIcon,
+  MoreHorizontalIcon,
+  MusicIcon,
+  UploadCloudIcon,
+  XIcon,
+} from '@/components/ui/icons'
 
 export type FileMeta = {
   $id: string
@@ -27,18 +41,23 @@ function humanSize(bytes: number): string {
   return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
 }
 
-function fileIcon(mimeType: string): string {
-  if (!mimeType) return '📁'
-  if (mimeType.startsWith('image/')) return '🖼️'
-  if (mimeType.startsWith('video/')) return '🎬'
-  if (mimeType === 'application/pdf') return '📕'
-  if (mimeType.includes('word') || mimeType.includes('document')) return '📝'
-  if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType.includes('csv')) return '📊'
-  if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return '📽️'
-  if (mimeType.includes('zip') || mimeType.includes('archive') || mimeType.includes('tar')) return '🗜️'
-  if (mimeType.startsWith('audio/')) return '🎵'
-  if (mimeType.startsWith('text/')) return '📄'
-  return '📁'
+function FileTypeIcon({
+  mimeType,
+  size = 18,
+  className = '',
+}: {
+  mimeType: string
+  size?: number
+  className?: string
+}) {
+  if (!mimeType) return <FileTextIcon size={size} className={className} />
+  if (mimeType.startsWith('image/')) return <ImageIcon size={size} className={className} />
+  if (mimeType.startsWith('video/')) return <FilmIcon size={size} className={className} />
+  if (mimeType.startsWith('audio/')) return <MusicIcon size={size} className={className} />
+  if (mimeType.includes('zip') || mimeType.includes('archive') || mimeType.includes('tar')) {
+    return <ArchiveFileIcon size={size} className={className} />
+  }
+  return <FileTextIcon size={size} className={className} />
 }
 
 function daysUntil(date: string): number {
@@ -57,14 +76,24 @@ function DeleteModal({
 }) {
   return (
     <div className="file-modal-backdrop" onClick={onCancel}>
-      <div className="file-modal" role="dialog" aria-modal="true" aria-label="Delete file" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="file-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Delete file"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 className="file-modal-title">Delete file?</h3>
         <p className="file-modal-body">
           <strong>{filename}</strong> will be permanently removed from storage. This action cannot be undone.
         </p>
         <div className="file-modal-actions">
-          <Button variant="quiet" onClick={onCancel}>Cancel</Button>
-          <Button variant="danger" onClick={onConfirm}>Delete</Button>
+          <Button variant="quiet" onClick={onCancel} title="Keep file">
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={onConfirm} title="Permanently delete file">
+            Delete
+          </Button>
         </div>
       </div>
     </div>
@@ -83,11 +112,19 @@ function RenameModal({
 }) {
   const [value, setValue] = useState(current)
   const inputRef = useRef<HTMLInputElement>(null)
-  useEffect(() => { inputRef.current?.select() }, [])
+  useEffect(() => {
+    inputRef.current?.select()
+  }, [])
 
   return (
     <div className="file-modal-backdrop" onClick={onCancel}>
-      <div className="file-modal" role="dialog" aria-modal="true" aria-label="Rename file" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="file-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Rename file"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 className="file-modal-title">Rename file</h3>
         <input
           ref={inputRef}
@@ -99,10 +136,20 @@ function RenameModal({
             if (e.key === 'Escape') onCancel()
           }}
           autoFocus
+          aria-label="New file name"
         />
         <div className="file-modal-actions">
-          <Button variant="quiet" onClick={onCancel}>Cancel</Button>
-          <Button variant="primary" onClick={() => onConfirm(value.trim())} disabled={!value.trim()}>Save</Button>
+          <Button variant="quiet" onClick={onCancel} title="Cancel rename">
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => onConfirm(value.trim())}
+            disabled={!value.trim()}
+            title="Save new name"
+          >
+            Save
+          </Button>
         </div>
       </div>
     </div>
@@ -121,7 +168,6 @@ function FileViewerModal({
   const isPdf = file.mimeType === 'application/pdf'
   const isVideo = file.mimeType.startsWith('video/')
   const isAudio = file.mimeType.startsWith('audio/')
-  const previewSrc = `/api/files/preview/${file.$id}`
   const viewSrc = `/api/files/preview/${file.$id}?view=1`
   const downloadSrc = `/api/files/preview/${file.$id}?download=1`
 
@@ -135,24 +181,55 @@ function FileViewerModal({
 
   return (
     <div className="file-modal-backdrop" onClick={onClose}>
-      <div className="file-viewer-modal" role="dialog" aria-modal="true" aria-label="File Preview" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="file-viewer-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="File Preview"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="file-viewer-header">
           <div className="file-viewer-title-box">
-            <span className="file-viewer-icon" aria-hidden>{fileIcon(file.mimeType)}</span>
+            <span className="file-viewer-icon" aria-hidden="true">
+              <FileTypeIcon mimeType={file.mimeType} size={22} />
+            </span>
             <div>
-              <h3 className="file-viewer-title" title={file.filename}>{file.filename}</h3>
-              <p className="file-viewer-sub">{humanSize(file.size)} · {new Date(file.uploadedAt).toLocaleDateString()}</p>
+              <h3 className="file-viewer-title" title={file.filename}>
+                {file.filename}
+              </h3>
+              <p className="file-viewer-sub">
+                {humanSize(file.size)} · {new Date(file.uploadedAt).toLocaleDateString()}
+              </p>
             </div>
           </div>
           <div className="file-viewer-actions">
-            <a href={downloadSrc} download={file.filename} className="button button-quiet file-viewer-btn" title="Download">
-              ⬇ Download
+            <a
+              href={downloadSrc}
+              download={file.filename}
+              className="button button-quiet file-viewer-btn"
+              title="Download file"
+            >
+              <DownloadIcon size={14} />
+              <span>Download</span>
             </a>
-            <a href={viewSrc} target="_blank" rel="noopener noreferrer" className="button button-quiet file-viewer-btn" title="Open in new tab">
-              ↗ Open
+            <a
+              href={viewSrc}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="button button-quiet file-viewer-btn"
+              title="Open file in new tab"
+            >
+              <ExternalLinkIcon size={14} />
+              <span>Open</span>
             </a>
-            <button className="icon-button file-viewer-close" onClick={onClose} aria-label="Close preview">
-              ✕
+            <button
+              className="icon-button file-viewer-close"
+              onClick={onClose}
+              aria-label="Close preview"
+              title="Close preview (Esc)"
+              type="button"
+            >
+              <XIcon size={16} />
             </button>
           </div>
         </div>
@@ -170,16 +247,28 @@ function FileViewerModal({
             </div>
           ) : isAudio ? (
             <div className="file-viewer-audio-wrap">
-              <span className="file-viewer-large-icon" aria-hidden>🎵</span>
+              <span className="file-viewer-large-icon" aria-hidden="true">
+                <MusicIcon size={48} />
+              </span>
               <audio src={viewSrc} controls className="file-viewer-audio" />
             </div>
           ) : (
             <div className="file-viewer-fallback">
-              <span className="file-viewer-large-icon" aria-hidden>{fileIcon(file.mimeType)}</span>
+              <span className="file-viewer-large-icon" aria-hidden="true">
+                <FileTypeIcon mimeType={file.mimeType} size={48} />
+              </span>
               <p className="file-viewer-fallback-name">{file.filename}</p>
-              <p className="file-viewer-fallback-meta">{file.mimeType} · {humanSize(file.size)}</p>
-              <a href={downloadSrc} download={file.filename} className="button button-primary">
-                Download file
+              <p className="file-viewer-fallback-meta">
+                {file.mimeType} · {humanSize(file.size)}
+              </p>
+              <a
+                href={downloadSrc}
+                download={file.filename}
+                className="button button-primary"
+                title="Download file"
+              >
+                <DownloadIcon size={15} />
+                <span>Download file</span>
               </a>
             </div>
           )}
@@ -190,7 +279,7 @@ function FileViewerModal({
 }
 
 // ─── File Card (Gallery View) ────────────────────────────────────────────────
-function FileCard({
+const FileCard = memo(function FileCard({
   file,
   onDelete,
   onRename,
@@ -209,7 +298,8 @@ function FileCard({
   const [imgError, setImgError] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  const canHaveThumbnail = (file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf') && !imgError
+  const canHaveThumbnail =
+    (file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf') && !imgError
   const expiresIn = file.expiresAt ? daysUntil(file.expiresAt) : null
   const expiryWarning = !file.isPermanent && expiresIn !== null && expiresIn < 7
 
@@ -223,7 +313,14 @@ function FileCard({
   }, [menuOpen])
 
   return (
-    <article className="fc" onClick={() => onPreview(file)} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') onPreview(file) }}>
+    <article
+      className="fc"
+      onClick={() => onPreview(file)}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onPreview(file)
+      }}
+    >
       <div className="fc-preview">
         {canHaveThumbnail ? (
           <img
@@ -233,12 +330,16 @@ function FileCard({
             onError={() => setImgError(true)}
           />
         ) : (
-          <span className="fc-icon" aria-hidden>{fileIcon(file.mimeType)}</span>
+          <span className="fc-icon" aria-hidden="true">
+            <FileTypeIcon mimeType={file.mimeType} size={32} />
+          </span>
         )}
       </div>
       <div className="fc-body">
         <div className="fc-top">
-          <p className="fc-name" title={file.filename}>{file.filename}</p>
+          <p className="fc-name" title={file.filename}>
+            {file.filename}
+          </p>
           <div className="fc-menu-wrap" ref={menuRef} onClick={(e) => e.stopPropagation()}>
             <button
               className="icon-button fc-dots"
@@ -246,12 +347,21 @@ function FileCard({
               aria-haspopup="true"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
+              title="File options"
+              type="button"
             >
-              •••
+              <MoreHorizontalIcon size={14} />
             </button>
             {menuOpen && (
               <div className="fc-dropdown" role="menu">
-                <button role="menuitem" onClick={() => { setMenuOpen(false); onPreview(file) }}>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onPreview(file)
+                  }}
+                  title="Open file preview"
+                >
                   Preview
                 </button>
                 <a
@@ -260,35 +370,69 @@ function FileCard({
                   download={file.filename}
                   className="fc-dropdown-link"
                   onClick={() => setMenuOpen(false)}
+                  title="Download file"
                 >
                   Download
                 </a>
-                <button role="menuitem" onClick={() => { setMenuOpen(false); onRename(file.$id, file.filename) }}>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onRename(file.$id, file.filename)
+                  }}
+                  title="Rename this file"
+                >
                   Rename
                 </button>
                 {!file.isPermanent ? (
-                  <button role="menuitem" onClick={() => { setMenuOpen(false); onMakePermanent(file.$id) }}>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      onMakePermanent(file.$id)
+                    }}
+                    title="Keep this file permanently"
+                  >
                     Make permanent
                   </button>
                 ) : (
-                  <button role="menuitem" onClick={() => { setMenuOpen(false); onRestore(file.$id) }}>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      onRestore(file.$id)
+                    }}
+                    title="Restore automatic 30-day expiration"
+                  >
                     Restore expiration
                   </button>
                 )}
                 <div className="fc-dropdown-divider" />
-                <button role="menuitem" className="fc-dropdown-danger" onClick={() => { setMenuOpen(false); onDelete(file.$id) }}>
+                <button
+                  role="menuitem"
+                  className="fc-dropdown-danger"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onDelete(file.$id)
+                  }}
+                  title="Delete this file"
+                >
                   Delete
                 </button>
               </div>
             )}
           </div>
         </div>
-        <p className="fc-meta">{humanSize(file.size)} · {new Date(file.uploadedAt).toLocaleDateString()}</p>
+        <p className="fc-meta">
+          {humanSize(file.size)} · {new Date(file.uploadedAt).toLocaleDateString()}
+        </p>
         <div className="fc-badges">
           {file.isPermanent ? (
             <span className="fbadge fbadge-permanent">Permanent</span>
           ) : expiresIn !== null ? (
-            <span className={`fbadge ${expiryWarning ? 'fbadge-warn' : ''}`}>Expires in {expiresIn}d</span>
+            <span className={`fbadge ${expiryWarning ? 'fbadge-warn' : ''}`}>
+              Expires in {expiresIn}d
+            </span>
           ) : (
             <span className="fbadge">Temporary</span>
           )}
@@ -296,10 +440,10 @@ function FileCard({
       </div>
     </article>
   )
-}
+})
 
 // ─── File Row (List View) ────────────────────────────────────────────────────
-function FileRow({
+const FileRow = memo(function FileRow({
   file,
   onDelete,
   onRename,
@@ -329,11 +473,24 @@ function FileRow({
   }, [menuOpen])
 
   return (
-    <div className="fr" onClick={() => onPreview(file)} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') onPreview(file) }}>
-      <span className="fr-icon" aria-hidden>{fileIcon(file.mimeType)}</span>
+    <div
+      className="fr"
+      onClick={() => onPreview(file)}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onPreview(file)
+      }}
+    >
+      <span className="fr-icon" aria-hidden="true">
+        <FileTypeIcon mimeType={file.mimeType} size={18} />
+      </span>
       <div className="fr-info">
-        <span className="fr-name" title={file.filename}>{file.filename}</span>
-        <span className="fr-sub">{humanSize(file.size)} · {new Date(file.uploadedAt).toLocaleDateString()}</span>
+        <span className="fr-name" title={file.filename}>
+          {file.filename}
+        </span>
+        <span className="fr-sub">
+          {humanSize(file.size)} · {new Date(file.uploadedAt).toLocaleDateString()}
+        </span>
       </div>
       <div className="fc-badges fr-badges">
         {file.isPermanent ? (
@@ -345,10 +502,25 @@ function FileRow({
         )}
       </div>
       <div className="fc-menu-wrap" ref={menuRef} onClick={(e) => e.stopPropagation()}>
-        <button className="icon-button fc-dots" aria-label="File options" onClick={() => setMenuOpen((v) => !v)}>•••</button>
+        <button
+          className="icon-button fc-dots"
+          aria-label="File options"
+          onClick={() => setMenuOpen((v) => !v)}
+          title="File options"
+          type="button"
+        >
+          <MoreHorizontalIcon size={14} />
+        </button>
         {menuOpen && (
           <div className="fc-dropdown" role="menu">
-            <button role="menuitem" onClick={() => { setMenuOpen(false); onPreview(file) }}>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false)
+                onPreview(file)
+              }}
+              title="Open file preview"
+            >
               Preview
             </button>
             <a
@@ -357,23 +529,61 @@ function FileRow({
               download={file.filename}
               className="fc-dropdown-link"
               onClick={() => setMenuOpen(false)}
+              title="Download file"
             >
               Download
             </a>
-            <button role="menuitem" onClick={() => { setMenuOpen(false); onRename(file.$id, file.filename) }}>Rename</button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false)
+                onRename(file.$id, file.filename)
+              }}
+              title="Rename this file"
+            >
+              Rename
+            </button>
             {!file.isPermanent ? (
-              <button role="menuitem" onClick={() => { setMenuOpen(false); onMakePermanent(file.$id) }}>Make permanent</button>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false)
+                  onMakePermanent(file.$id)
+                }}
+                title="Keep this file permanently"
+              >
+                Make permanent
+              </button>
             ) : (
-              <button role="menuitem" onClick={() => { setMenuOpen(false); onRestore(file.$id) }}>Restore expiration</button>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false)
+                  onRestore(file.$id)
+                }}
+                title="Restore automatic 30-day expiration"
+              >
+                Restore expiration
+              </button>
             )}
             <div className="fc-dropdown-divider" />
-            <button role="menuitem" className="fc-dropdown-danger" onClick={() => { setMenuOpen(false); onDelete(file.$id) }}>Delete</button>
+            <button
+              role="menuitem"
+              className="fc-dropdown-danger"
+              onClick={() => {
+                setMenuOpen(false)
+                onDelete(file.$id)
+              }}
+              title="Delete this file"
+            >
+              Delete
+            </button>
           </div>
         )}
       </div>
     </div>
   )
-}
+})
 
 // ─── Main Files Page ─────────────────────────────────────────────────────────
 export default function FilesPage() {
@@ -404,8 +614,6 @@ export default function FilesPage() {
   }, [toast])
 
   useEffect(() => {
-    // This is a client-only data hydration effect; the fetch is intentionally triggered once per mount.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchFiles()
   }, [fetchFiles])
 
@@ -443,36 +651,49 @@ export default function FilesPage() {
     xhr.send(fd)
   }, [fetchFiles, toast])
 
-  function onDragOver(e: React.DragEvent) { e.preventDefault(); setIsDragOver(true) }
-  function onDragLeave() { setIsDragOver(false) }
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragOver(true)
+  }
+  function onDragLeave() {
+    setIsDragOver(false)
+  }
   function onDrop(e: React.DragEvent) {
     e.preventDefault()
     setIsDragOver(false)
     const f = e.dataTransfer.files[0]
     if (f) uploadFile(f)
   }
-  function onBrowse() { inputRef.current?.click() }
+  function onBrowse() {
+    inputRef.current?.click()
+  }
   function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (f) uploadFile(f)
     e.target.value = ''
   }
 
-  async function confirmDelete(id: string) {
+  // Optimistic delete with rollback
+  const confirmDelete = useCallback(async (id: string) => {
     setDeleteTarget(null)
+    const previousFiles = files
+    setFiles((curr) => (curr ? curr.filter((f) => f.$id !== id) : curr))
     try {
       const res = await fetch(`/api/files/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Delete failed')
       toast.notify('File deleted', 'success')
-      fetchFiles()
     } catch (err: any) {
+      setFiles(previousFiles)
       toast.notify(err.message || 'Delete failed', 'error')
     }
-  }
+  }, [files, toast])
 
-  async function confirmRename(id: string, name: string) {
+  // Optimistic rename with rollback
+  const confirmRename = useCallback(async (id: string, name: string) => {
     setRenameTarget(null)
     if (!name) return
+    const previousFiles = files
+    setFiles((curr) => (curr ? curr.map((f) => f.$id === id ? { ...f, filename: name } : f) : curr))
     try {
       const res = await fetch(`/api/files/${id}`, {
         method: 'PATCH',
@@ -484,33 +705,48 @@ export default function FilesPage() {
         throw new Error(j?.error || 'Rename failed')
       }
       toast.notify('Renamed successfully', 'success')
-      fetchFiles()
     } catch (err: any) {
+      setFiles(previousFiles)
       toast.notify(err.message || 'Rename failed', 'error')
     }
-  }
+  }, [files, toast])
 
-  async function handleMakePermanent(id: string) {
+  // Optimistic make permanent with rollback
+  const handleMakePermanent = useCallback(async (id: string) => {
+    const previousFiles = files
+    setFiles((curr) => (curr ? curr.map((f) => f.$id === id ? { ...f, isPermanent: true } : f) : curr))
     try {
       const res = await fetch(`/api/files/${id}/make-permanent`, { method: 'POST' })
       if (!res.ok) throw new Error('Operation failed')
       toast.notify('Marked as permanent', 'success')
-      fetchFiles()
     } catch (err: any) {
+      setFiles(previousFiles)
       toast.notify(err.message || 'Operation failed', 'error')
     }
-  }
+  }, [files, toast])
 
-  async function handleRestore(id: string) {
+  // Optimistic restore expiration with rollback
+  const handleRestore = useCallback(async (id: string) => {
+    const previousFiles = files
+    const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    setFiles((curr) => (curr ? curr.map((f) => f.$id === id ? { ...f, isPermanent: false, expiresAt: futureDate } : f) : curr))
     try {
       const res = await fetch(`/api/files/${id}/restore-expiration`, { method: 'POST' })
       if (!res.ok) throw new Error('Operation failed')
       toast.notify('Expiration restored (30 days)', 'success')
-      fetchFiles()
     } catch (err: any) {
+      setFiles(previousFiles)
       toast.notify(err.message || 'Operation failed', 'error')
     }
-  }
+  }, [files, toast])
+
+  const handleDeleteClick = useCallback((id: string) => {
+    setDeleteTarget(files?.find((x) => x.$id === id) || null)
+  }, [files])
+
+  const handleRenameClick = useCallback((id: string, current: string) => {
+    setRenameTarget({ id, current })
+  }, [])
 
   const totalUsed = files ? files.reduce((s, f) => s + (f.size || 0), 0) : 0
   const maxTotal = 500 * 1024 * 1024
@@ -518,11 +754,11 @@ export default function FilesPage() {
   const remaining = Math.max(0, maxTotal - totalUsed)
 
   return (
-    <AppShell>
+    <>
       {/* Hidden native file input for accessibility */}
       <input ref={inputRef} type="file" className="sr-only" onChange={onChange} tabIndex={-1} aria-hidden />
 
-      {/* Modals */}
+      {/* Modals rendered conditionally */}
       {previewTarget && (
         <FileViewerModal
           file={previewTarget}
@@ -549,10 +785,16 @@ export default function FilesPage() {
         <div className="files-header">
           <div>
             <h1 className="files-title">Files</h1>
-            <p className="files-subtitle">Upload, preview, and manage your study resources</p>
+            <p className="files-subtitle">Upload, preview, and organize your workspace assets</p>
           </div>
-          <Button variant="primary" onClick={onBrowse} disabled={uploading}>
-            {uploading ? `Uploading ${progress}%…` : '+ Upload file'}
+          <Button
+            variant="primary"
+            onClick={onBrowse}
+            disabled={uploading}
+            title="Upload new file from computer"
+          >
+            <UploadCloudIcon size={16} />
+            <span>{uploading ? `Uploading ${progress}%…` : 'Upload file'}</span>
           </Button>
         </div>
 
@@ -561,9 +803,13 @@ export default function FilesPage() {
           <div className="storage-card-top">
             <div>
               <p className="storage-label">Storage Quota</p>
-              <p className="storage-used">{humanSize(totalUsed)} <span>of {humanSize(maxTotal)}</span></p>
+              <p className="storage-used">
+                {humanSize(totalUsed)} <span>of {humanSize(maxTotal)}</span>
+              </p>
             </div>
-            <p className="storage-remaining">{remaining === 0 ? 'Quota full' : `${humanSize(remaining)} free`}</p>
+            <p className="storage-remaining">
+              {remaining === 0 ? 'Quota full' : `${humanSize(remaining)} free`}
+            </p>
           </div>
           <div className="storage-bar-track">
             <div
@@ -583,15 +829,29 @@ export default function FilesPage() {
           role="button"
           tabIndex={0}
           aria-label="Upload area — drag and drop a file or click to browse"
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onBrowse() }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') onBrowse()
+          }}
         >
           <div className="drop-zone-inner">
-            <span className="drop-zone-icon" aria-hidden>☁️</span>
+            <span className="drop-zone-icon" aria-hidden="true">
+              <UploadCloudIcon size={32} />
+            </span>
             <p className="drop-zone-text">
               {isDragOver ? 'Drop file to upload' : 'Drag & drop a file here'}
             </p>
             <p className="drop-zone-sub">
-              or <button type="button" className="drop-zone-link" onClick={(e) => { e.stopPropagation(); onBrowse() }}>browse files</button>
+              or{' '}
+              <button
+                type="button"
+                className="drop-zone-link"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onBrowse()
+                }}
+              >
+                browse files
+              </button>
             </p>
           </div>
           {uploading && (
@@ -612,16 +872,18 @@ export default function FilesPage() {
               onClick={() => setView('gallery')}
               aria-pressed={view === 'gallery'}
               title="Gallery view"
+              type="button"
             >
-              ⊞
+              <GridIcon size={14} />
             </button>
             <button
               className={`view-btn${view === 'list' ? ' view-btn-active' : ''}`}
               onClick={() => setView('list')}
               aria-pressed={view === 'list'}
               title="List view"
+              type="button"
             >
-              ≡
+              <ListIcon size={14} />
             </button>
           </div>
         </div>
@@ -635,9 +897,13 @@ export default function FilesPage() {
           </div>
         ) : files.length === 0 ? (
           <div className="files-empty">
-            <span className="files-empty-icon" aria-hidden>📁</span>
+            <span className="files-empty-icon" aria-hidden="true">
+              <FolderIcon size={40} />
+            </span>
             <p className="files-empty-title">No files uploaded yet</p>
-            <p className="files-empty-sub">Upload notes, PDFs, assignments, or study media to keep them organized.</p>
+            <p className="files-empty-sub">
+              Upload documents, media, or resources to keep them organized in your workspace.
+            </p>
           </div>
         ) : view === 'gallery' ? (
           <div className="files-gallery">
@@ -645,8 +911,8 @@ export default function FilesPage() {
               <FileCard
                 key={f.$id}
                 file={f}
-                onDelete={(id) => setDeleteTarget(files.find((x) => x.$id === id) || null)}
-                onRename={(id, current) => setRenameTarget({ id, current })}
+                onDelete={handleDeleteClick}
+                onRename={handleRenameClick}
                 onMakePermanent={handleMakePermanent}
                 onRestore={handleRestore}
                 onPreview={setPreviewTarget}
@@ -659,8 +925,8 @@ export default function FilesPage() {
               <FileRow
                 key={f.$id}
                 file={f}
-                onDelete={(id) => setDeleteTarget(files.find((x) => x.$id === id) || null)}
-                onRename={(id, current) => setRenameTarget({ id, current })}
+                onDelete={handleDeleteClick}
+                onRename={handleRenameClick}
                 onMakePermanent={handleMakePermanent}
                 onRestore={handleRestore}
                 onPreview={setPreviewTarget}
@@ -669,6 +935,6 @@ export default function FilesPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   )
 }

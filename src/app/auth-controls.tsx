@@ -6,6 +6,25 @@ import { ThemeToggle } from '@/components/theme-toggle'
 export function AuthControls() {
   const { isLoaded, user } = useUser()
   if (!isLoaded) return <div className="auth-placeholder" aria-hidden="true" />
-  if (user) return <span className="auth-controls"><ThemeToggle /><span className="avatar-ring"><UserButton /></span></span>
-  return <span className="auth-controls"><ThemeToggle /><SignInButton mode="modal"><button className="signin">Sign in</button></SignInButton><SignUpButton mode="modal"><button className="signup">Get started</button></SignUpButton></span>
+  if (user) {
+    return (
+      <span className="auth-controls">
+        <ThemeToggle />
+        <span className="avatar-ring" title="Account settings">
+          <UserButton />
+        </span>
+      </span>
+    )
+  }
+  return (
+    <span className="auth-controls">
+      <ThemeToggle />
+      <SignInButton mode="modal">
+        <button className="signin" title="Sign in to your account">Sign in</button>
+      </SignInButton>
+      <SignUpButton mode="modal">
+        <button className="signup" title="Create a new account">Get started</button>
+      </SignUpButton>
+    </span>
+  )
 }

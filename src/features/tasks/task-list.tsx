@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import React, { memo, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { SectionHeading } from '@/components/ui/section-heading'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PlusIcon } from '@/components/ui/icons'
 import type { Task } from './types'
 
 type TaskListProps = {
@@ -25,7 +26,7 @@ function TaskListSkeleton() {
   )
 }
 
-export function TaskList({ tasks, completedCount, isLoading, onAdd, onToggle }: TaskListProps) {
+export const TaskList = memo(function TaskList({ tasks, completedCount, isLoading, onAdd, onToggle }: TaskListProps) {
   const [draft, setDraft] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -44,12 +45,13 @@ export function TaskList({ tasks, completedCount, isLoading, onAdd, onToggle }: 
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="What needs doing?"
+          placeholder="What needs doing? (Press Enter)"
           aria-label="New task"
           disabled={isSubmitting}
         />
-        <Button type="submit" disabled={isSubmitting || !draft.trim()}>
-          {isSubmitting ? 'Adding…' : 'Add'}
+        <Button type="submit" disabled={isSubmitting || !draft.trim()} title="Add new task">
+          <PlusIcon size={14} />
+          <span>{isSubmitting ? 'Adding…' : 'Add'}</span>
         </Button>
       </form>
 
@@ -64,6 +66,7 @@ export function TaskList({ tasks, completedCount, isLoading, onAdd, onToggle }: 
                 checked={task.done}
                 onChange={() => void onToggle(task.id)}
                 aria-label={`Mark "${task.title}" as ${task.done ? 'incomplete' : 'complete'}`}
+                title={task.done ? 'Mark task incomplete' : 'Mark task complete'}
               />
               <span>{task.title}</span>
             </label>
@@ -77,4 +80,4 @@ export function TaskList({ tasks, completedCount, isLoading, onAdd, onToggle }: 
       )}
     </Card>
   )
-}
+})

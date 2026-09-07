@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { AppShell } from '@/components/app-shell'
+import React, { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { PauseIcon, PlayIcon, RotateCcwIcon } from '@/components/ui/icons'
 import { PRESET_DURATIONS, useFocusTimer } from '@/features/focus/focus-timer-provider'
 
 function pad(n: number) {
@@ -63,12 +63,11 @@ export default function FocusTimerPage() {
   }
 
   return (
-    <AppShell>
-      <div className="page-intro">
-        <p className="eyebrow">Workspace · Focus</p>
+    <>
+      <header className="page-intro">
         <h1>Focus timer</h1>
         <p className="lede">Protect your attention with timed, intentional sessions.</p>
-      </div>
+      </header>
 
       <div className="focus-timer-container">
         {/* Preset duration selector */}
@@ -83,6 +82,7 @@ export default function FocusTimerPage() {
                 setSelectedDurationMinutes(preset)
               }}
               disabled={timerRunning}
+              title={`Set ${preset} minute timer`}
             >
               {preset}m
             </button>
@@ -92,6 +92,7 @@ export default function FocusTimerPage() {
             className={`preset-btn${showCustomInput || !PRESET_DURATIONS.includes(selectedDurationMinutes as any) ? ' preset-btn-active' : ''}`}
             onClick={() => setShowCustomInput((v) => !v)}
             disabled={timerRunning}
+            title="Set custom duration"
           >
             Custom…
           </button>
@@ -104,13 +105,19 @@ export default function FocusTimerPage() {
               type="number"
               min={1}
               max={180}
-              placeholder="Duration in minutes (e.g. 50)"
+              placeholder="Minutes (1–180)"
               value={customInput}
               onChange={(e) => setCustomInput(e.target.value)}
               className="timer-custom-input"
               autoFocus
+              aria-label="Custom duration in minutes"
             />
-            <Button type="submit" variant="primary" disabled={!customInput || parseInt(customInput, 10) <= 0}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={!customInput || parseInt(customInput, 10) <= 0}
+              title="Apply custom duration"
+            >
               Set duration
             </Button>
           </form>
@@ -140,31 +147,53 @@ export default function FocusTimerPage() {
 
           <p className="timer-meta">
             {isCompleted
-              ? 'Session complete! Take a well-deserved break.'
+              ? 'Session complete! Take a well-deserved pause.'
               : focusSeconds === 0 && !timerRunning
                 ? `${selectedDurationMinutes}-minute session ready`
-                : `${formatDuration(focusSeconds)} elapsed · ${sessionCount} session${sessionCount === 1 ? '' : 's'} tracked`}
+                : `${formatDuration(focusSeconds)} elapsed · ${sessionCount} session${sessionCount === 1 ? '' : 's'} tracked today`}
           </p>
 
           <div className="timer-actions">
             {timerRunning ? (
-              <Button type="button" onClick={pauseTimer}>Pause</Button>
+              <Button
+                type="button"
+                onClick={pauseTimer}
+                title="Pause current session"
+                size="lg"
+                variant="primary"
+              >
+                <PauseIcon size={16} />
+                <span>Pause</span>
+              </Button>
             ) : (
-              <Button type="button" onClick={startTimer} disabled={isSaving}>
-                {isSaving ? 'Saving…' : isCompleted ? 'Start another' : focusSeconds > 0 ? 'Resume' : 'Start session'}
+              <Button
+                type="button"
+                onClick={startTimer}
+                disabled={isSaving}
+                title="Start focus session"
+                size="lg"
+                variant="primary"
+              >
+                <PlayIcon size={15} />
+                <span>
+                  {isSaving ? 'Saving…' : isCompleted ? 'Start another' : focusSeconds > 0 ? 'Resume' : 'Start session'}
+                </span>
               </Button>
             )}
             <Button
               type="button"
               variant="quiet"
+              size="lg"
               onClick={() => void resetTimer()}
               disabled={isSaving || (focusSeconds === 0 && !isCompleted)}
+              title={isCompleted ? 'Dismiss completed session' : 'Reset timer'}
             >
-              {isCompleted ? 'Dismiss' : 'Reset'}
+              <RotateCcwIcon size={15} />
+              <span>{isCompleted ? 'Dismiss' : 'Reset'}</span>
             </Button>
           </div>
         </Card>
       </div>
-    </AppShell>
+    </>
   )
 }

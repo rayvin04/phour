@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
-import { AppShell } from '@/components/app-shell'
+import React, { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PlusIcon } from '@/components/ui/icons'
 import { TaskRow } from '@/features/tasks/task-row'
 import { useTaskWorkspace } from '@/features/tasks/tasks-provider'
 
@@ -43,24 +43,30 @@ export default function TasksPage() {
   }
 
   return (
-    <AppShell>
-      <div className="page-intro">
-        <p className="eyebrow">Workspace · Tasks</p>
+    <>
+      <header className="page-intro">
         <h1>Tasks</h1>
         <p className="lede">Capture what matters, then give it your full attention.</p>
-      </div>
+      </header>
 
-      <Card className="tasks">
+      <Card className="tasks-card">
         <form className="task-form" onSubmit={submit}>
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Add a task…"
+            placeholder="Add a task… (Press Enter to save)"
             aria-label="New task"
             disabled={isSubmitting}
+            className="task-input"
           />
-          <Button type="submit" disabled={isSubmitting || !draft.trim()}>
-            {isSubmitting ? 'Creating…' : 'Create task'}
+          <Button
+            type="submit"
+            disabled={isSubmitting || !draft.trim()}
+            title="Create a new task"
+            variant="primary"
+          >
+            <PlusIcon size={15} />
+            <span>{isSubmitting ? 'Creating…' : 'Add task'}</span>
           </Button>
         </form>
 
@@ -82,12 +88,12 @@ export default function TasksPage() {
         ) : (
           <div className="empty-state">
             <h2>No active tasks</h2>
-            <p>Add your first task using the form above.</p>
+            <p>Your workspace is clear. Add a task using the input above.</p>
           </div>
         )}
 
         {!isLoading && archivedTasks.length > 0 && (
-          <>
+          <section className="archive-section" aria-label="Archived tasks">
             <div className="section-head archive-head">
               <h2>Archived</h2>
               <span>{archivedTasks.length} task{archivedTasks.length === 1 ? '' : 's'}</span>
@@ -95,20 +101,21 @@ export default function TasksPage() {
             <div className="archived-list">
               {archivedTasks.map((task) => (
                 <div className="archived-task" key={task.id}>
-                  <span>{task.title}</span>
+                  <span className="archived-task__title">{task.title}</span>
                   <button
                     type="button"
                     className="text-button"
                     onClick={() => void restoreTask(task.id)}
+                    title="Restore task to active list"
                   >
                     Restore
                   </button>
                 </div>
               ))}
             </div>
-          </>
+          </section>
         )}
       </Card>
-    </AppShell>
+    </>
   )
 }

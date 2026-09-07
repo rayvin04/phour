@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { errorMessage } from '@/lib/api-client'
 import { initialTasks, type Task } from './types'
 import { tasksService } from './service'
@@ -13,6 +13,8 @@ export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const tasksRef = useRef(tasks)
+  tasksRef.current = tasks
 
   const fail = useCallback((cause: unknown, fallback: string): ActionResult => {
     const message = errorMessage(cause, fallback)
@@ -24,7 +26,8 @@ export function useTasks() {
     setIsLoading(true)
     setError(null)
     try {
-      setTasks(await tasksService.list())
+      const items = await tasksService.list()
+      setTasks(items)
       return success
     } catch (cause) {
       return fail(cause, 'Unable to load tasks.')
@@ -37,13 +40,24 @@ export function useTasks() {
     const trimmedTitle = title.trim()
     if (!trimmedTitle) return fail(new Error('Add a task title before saving.'), 'Unable to create task.')
 
-    const optimisticTask: Task = { id: temporaryId(), title: trimmedTitle, done: false, archived: false, priority: details.priority || 'medium', dueDate: details.dueDate, tags: details.tags || [], category: details.category, notes: details.notes, subtasks: [] }
+    const optimisticTask: Task = {
+      id: temporaryId(),
+      title: trimmedTitle,
+      done: false,
+      archived: false,
+      priority: details.priority || 'medium',
+      dueDate: details.dueDate,
+      tags: details.tags || [],
+      category: details.category,
+      notes: details.notes,
+      subtasks: [],
+    }
     setError(null)
     setTasks((current) => [...current, optimisticTask])
 
     try {
       const savedTask = await tasksService.create(trimmedTitle, details)
-      setTasks((current) => current.map((task) => task.id === optimisticTask.id ? savedTask : task))
+      setTasks((current) => current.map((task) => (task.id === optimisticTask.id ? savedTask : task)))
       return success
     } catch (cause) {
       setTasks((current) => current.filter((task) => task.id !== optimisticTask.id))
@@ -52,34 +66,38 @@ export function useTasks() {
   }, [fail])
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>): Promise<ActionResult> => {
-    const previousTask = tasks.find((task) => task.id === id)
+    const previousTask = tasksRef.current.find((task) => task.id === id)
     if (!previousTask) return fail(new Error('That task is no longer available.'), 'Unable to update task.')
 
     const optimisticTask = { ...previousTask, ...updates }
     setError(null)
-    setTasks((current) => current.map((task) => task.id === id ? optimisticTask : task))
+    setTasks((current) => current.map((task) => (task.id === id ? optimisticTask : task)))
 
     const { subtasks: _subtasks, ...persistedUpdates } = updates
     if (!Object.keys(persistedUpdates).length) return success
 
     try {
       const savedTask = await tasksService.update(id, persistedUpdates)
-      setTasks((current) => current.map((task) => task.id === id ? { ...task, ...savedTask, subtasks: optimisticTask.subtasks } : task))
+      setTasks((current) =>
+        current.map((task) =>
+          task.id === id ? { ...task, ...savedTask, subtasks: optimisticTask.subtasks } : task,
+        ),
+      )
       return success
     } catch (cause) {
-      setTasks((current) => current.map((task) => task.id === id ? previousTask : task))
+      setTasks((current) => current.map((task) => (task.id === id ? previousTask : task)))
       return fail(cause, 'Unable to update task.')
     }
-  }, [fail, tasks])
+  }, [fail])
 
   const toggleTask = useCallback((id: string) => {
-    const task = tasks.find((item) => item.id === id)
+    const task = tasksRef.current.find((item) => item.id === id)
     return task ? updateTask(id, { done: !task.done }) : Promise.resolve(fail(new Error('That task is no longer available.'), 'Unable to update task.'))
-  }, [fail, tasks, updateTask])
+  }, [fail, updateTask])
 
   const deleteTask = useCallback(async (id: string): Promise<ActionResult> => {
-    const index = tasks.findIndex((task) => task.id === id)
-    const previousTask = tasks[index]
+    const index = tasksRef.current.findIndex((task) => task.id === id)
+    const previousTask = tasksRef.current[index]
     if (!previousTask) return fail(new Error('That task is no longer available.'), 'Unable to delete task.')
 
     setError(null)
@@ -91,7 +109,7 @@ export function useTasks() {
       setTasks((current) => [...current.slice(0, index), previousTask, ...current.slice(index)])
       return fail(cause, 'Unable to delete task.')
     }
-  }, [fail, tasks])
+  }, [fail])
 
   const resetTasks = useCallback(() => {
     setTasks(initialTasks)
@@ -103,5 +121,18 @@ export function useTasks() {
   const archivedTasks = useMemo(() => tasks.filter((task) => task.archived), [tasks])
   const completedCount = useMemo(() => activeTasks.filter((task) => task.done).length, [activeTasks])
 
-  return { tasks, activeTasks, archivedTasks, completedCount, isLoading, error, loadTasks, addTask, updateTask, toggleTask, deleteTask, resetTasks }
+  return {
+    tasks,
+    activeTasks,
+    archivedTasks,
+    completedCount,
+    isLoading,
+    error,
+    loadTasks,
+    addTask,
+    updateTask,
+    toggleTask,
+    deleteTask,
+    resetTasks,
+  }
 }

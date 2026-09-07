@@ -19,13 +19,18 @@ type HabitsContextValue = {
 const HabitsContext = createContext<HabitsContextValue | null>(null)
 type ActionResult = { ok: true } | { ok: false; error: string }
 type FailureResult = Extract<ActionResult, { ok: false }>
-const success: ActionResult = { ok: true }
 const temporaryId = () => typeof crypto !== 'undefined' && crypto.randomUUID ? `temporary-${crypto.randomUUID()}` : `temporary-${Date.now()}-${Math.random()}`
 const localDate = () => {
   const date = new Date()
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
-const toHabit = (habit: PersistedHabit): Habit => ({ id: habit.$id, title: habit.title, streak: habit.streak, completedDates: habit.completedDates || [], completed: (habit.completedDates || []).includes(localDate()) })
+const toHabit = (habit: PersistedHabit): Habit => ({
+  id: habit.$id,
+  title: habit.title,
+  streak: habit.streak,
+  completedDates: habit.completedDates || [],
+  completed: (habit.completedDates || []).includes(localDate()),
+})
 
 export function HabitsProvider({ children }: { children: React.ReactNode }) {
   const { isLoaded, user } = useUser()
@@ -33,13 +38,18 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   const [habits, setHabits] = useState<Habit[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [attemptedUserId, setAttemptedUserId] = useState<string | null>(null)
+  const habitsRef = useRef(habits)
+  habitsRef.current = habits
+
+  const attemptedUserId = useRef<string | null>(null)
+  const inFlightLoad = useRef<Promise<void> | null>(null)
   const previousUserId = useRef<string | null | undefined>(user?.id)
 
   useEffect(() => {
     if (previousUserId.current === user?.id) return
     previousUserId.current = user?.id
-    setAttemptedUserId(null)
+    attemptedUserId.current = null
+    inFlightLoad.current = null
     setHabits([])
     setError(null)
     setIsLoading(false)
@@ -52,20 +62,27 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const ensureLoaded = useCallback(async () => {
-    if (!isLoaded || !user || attemptedUserId === user.id) return
-    setAttemptedUserId(user.id)
-    setIsLoading(true)
-    setError(null)
-    try {
-      const items = await requestJson<PersistedHabit[]>('/api/habits')
-      setHabits(items.map(toHabit))
-    } catch (cause) {
-      const result = fail(cause, 'Unable to load habits.')
-      notify(result.error, 'error')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [attemptedUserId, fail, isLoaded, notify, user])
+    if (!isLoaded || !user) return
+    if (attemptedUserId.current === user.id) return
+    if (inFlightLoad.current) return inFlightLoad.current
+
+    attemptedUserId.current = user.id
+    inFlightLoad.current = (async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const items = await requestJson<PersistedHabit[]>('/api/habits')
+        setHabits(items.map(toHabit))
+      } catch (cause) {
+        const result = fail(cause, 'Unable to load habits.')
+        notify(result.error, 'error')
+      } finally {
+        setIsLoading(false)
+        inFlightLoad.current = null
+      }
+    })()
+    await inFlightLoad.current
+  }, [fail, isLoaded, notify, user])
 
   const addHabit = useCallback(async (title: string) => {
     const trimmedTitle = title.trim()
@@ -80,7 +97,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     setHabits((current) => [...current, optimisticHabit])
     try {
       const habit = await requestJson<PersistedHabit>('/api/habits', { method: 'POST', body: JSON.stringify({ title: trimmedTitle }) })
-      setHabits((current) => current.map((item) => item.id === optimisticHabit.id ? toHabit(habit) : item))
+      setHabits((current) => current.map((item) => (item.id === optimisticHabit.id ? toHabit(habit) : item)))
       notify('Habit created')
       return true
     } catch (cause) {
@@ -92,7 +109,7 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   }, [fail, notify])
 
   const toggleHabit = useCallback(async (id: string) => {
-    const previousHabit = habits.find((habit) => habit.id === id)
+    const previousHabit = habitsRef.current.find((habit) => habit.id === id)
     if (!previousHabit) {
       const result = fail(new Error('That habit is no longer available.'), 'Unable to update habit.')
       notify(result.error, 'error')
@@ -101,24 +118,37 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
 
     const date = localDate()
     const completedDates = previousHabit.completed ? previousHabit.completedDates.filter((item) => item !== date) : [...previousHabit.completedDates, date]
-    const optimisticHabit = { ...previousHabit, completedDates, completed: !previousHabit.completed, streak: previousHabit.completed ? Math.max(0, previousHabit.streak - 1) : previousHabit.streak + 1 }
+    const optimisticHabit = {
+      ...previousHabit,
+      completedDates,
+      completed: !previousHabit.completed,
+      streak: previousHabit.completed ? Math.max(0, previousHabit.streak - 1) : previousHabit.streak + 1,
+    }
     setError(null)
-    setHabits((current) => current.map((habit) => habit.id === id ? optimisticHabit : habit))
+    setHabits((current) => current.map((habit) => (habit.id === id ? optimisticHabit : habit)))
 
     try {
       await requestJson(`/api/habits/${id}`, { method: 'PATCH', body: JSON.stringify({ completedDates, streak: optimisticHabit.streak }) })
       notify(optimisticHabit.completed ? 'Habit completed' : 'Habit marked incomplete')
       return true
     } catch (cause) {
-      setHabits((current) => current.map((habit) => habit.id === id ? previousHabit : habit))
+      setHabits((current) => current.map((habit) => (habit.id === id ? previousHabit : habit)))
       const result = fail(cause, 'Unable to update habit.')
       notify(result.error, 'error')
       return false
     }
-  }, [fail, habits, notify])
+  }, [fail, notify])
 
-  const isWaitingForInitialLoad = isLoaded && Boolean(user) && attemptedUserId !== user?.id && !error
-  const value = useMemo(() => ({ habits, isLoading: isLoading || isWaitingForInitialLoad, error, addHabit, toggleHabit, ensureLoaded }), [addHabit, ensureLoaded, error, habits, isLoading, isWaitingForInitialLoad, toggleHabit])
+  const isWaitingForInitialLoad = isLoaded && Boolean(user) && attemptedUserId.current !== user?.id && !error && habits.length === 0
+  const value = useMemo(() => ({
+    habits,
+    isLoading: isLoading || isWaitingForInitialLoad,
+    error,
+    addHabit,
+    toggleHabit,
+    ensureLoaded,
+  }), [addHabit, ensureLoaded, error, habits, isLoading, isWaitingForInitialLoad, toggleHabit])
+
   return <HabitsContext.Provider value={value}>{children}</HabitsContext.Provider>
 }
 
