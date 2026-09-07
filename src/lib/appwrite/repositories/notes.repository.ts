@@ -5,4 +5,4 @@ import type { PersistedCanvasState, PersistedNote, PersistedNoteImage, Persisted
 export const notesRepository = new UserRepository<PersistedNote>('notes')
 export const noteImagesRepository = new UserRepository<PersistedNoteImage>('noteImages')
 export const canvasStateRepository = new UserRepository<PersistedCanvasState>('canvasState')
-export const relationshipsRepository = new UserRepository<PersistedRelationship>('relationships')[]
+export const relationshipsRepository = new UserRepository<PersistedRelationship>('relationships')
